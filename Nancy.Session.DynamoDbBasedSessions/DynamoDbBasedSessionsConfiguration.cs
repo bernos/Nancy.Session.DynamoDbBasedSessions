@@ -1,4 +1,5 @@
 ﻿using Nancy.Cryptography;
+using Nancy.Session;
 
 namespace Nancy.DynamoDbBasedSessions
 {
@@ -13,14 +14,17 @@ namespace Nancy.DynamoDbBasedSessions
             SessionIdCookieName = "__sid__";
             SessionTimeOutInMinutes = 30;
             CryptographyConfiguration = CryptographyConfiguration.Default;
+            Repository = new DynamoDbSessionRepository("SessionId", tableName);
         }
 
+        public string ApplicationName { get; set; }
         public CryptographyConfiguration CryptographyConfiguration { get; set; }
         public IObjectSerializer Serializer { get; set; }
 
         public string SessionIdCookieName { get; set; }
 
         public int SessionTimeOutInMinutes { get; set; }
+        public IDynamoDbSessionRepository Repository { get; set; }
 
         public bool IsValid
         {

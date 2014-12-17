@@ -45,11 +45,10 @@ namespace Nancy.Session
         public static void SaveSession(NancyContext context, DynamoDbBasedSessions sessionStore)
         {
             var cookieName = sessionStore.Configuration.SessionIdCookieName;
-            var sessionId = context.Request.Cookies.ContainsKey(cookieName)
-                                ? context.Request.Cookies[cookieName]
-                                : Guid.NewGuid().ToString();
+            var isNew = context.Request.Cookies.ContainsKey(cookieName);
+            var sessionId = isNew ? context.Request.Cookies[cookieName] : Guid.NewGuid().ToString();
 
-            sessionStore.Save(sessionId, context.Request.Session, context.Response);
+            sessionStore.Save(sessionId, context.Request.Session, context.Response, isNew);
         }
 
         public DynamoDbBasedSessions(DynamoDbBasedSessionsConfiguration configuration)
@@ -72,20 +71,21 @@ namespace Nancy.Session
             get { return _configuration; }
         }
 
-        public void Save(string sessionId, ISession session, Response response)
+        public void Save(string sessionId, ISession session, Response response, bool isNew)
         {
-            if (session == null || !session.HasChanged)
+            if (session == null)
             {
                 return;
             }
 
             var data = Encrypt(Serialize(session));
-
-            // TODO: Save the data to dynamodb
+            var expires = DateTime.UtcNow.AddMinutes(Configuration.SessionTimeOutInMinutes);
+            
+            Configuration.Repository.SaveSession(sessionId, Configuration.ApplicationName, data, expires, isNew);
             
             response.WithCookie(new NancyCookie(Configuration.SessionIdCookieName, sessionId)
             {
-                Expires = DateTime.UtcNow.AddMinutes(Configuration.SessionTimeOutInMinutes)
+                Expires = expires.AddSeconds(10)
             });
         }
 
@@ -97,6 +97,11 @@ namespace Nancy.Session
 
                 // TODO: Load the session from dynamodb
                 string value = "";
+
+                // TODO: If the session has expired, delete it. Also delete the sessionId cookie in the request, to ensure we dont try to resave against the expired session id during the end request handler
+                //request.Cookies.Remove(Configuration.SessionIdCookieName);
+
+                
 
                 return new Session(Deserialize(Decrypt(value)));
             }
