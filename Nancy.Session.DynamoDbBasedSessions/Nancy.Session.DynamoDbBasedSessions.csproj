@@ -45,13 +45,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-<<<<<<< HEAD
-    <Compile Include="Class1.cs" />
     <Compile Include="DynamoDbSessionStore.cs" />
-=======
     <Compile Include="DynamoDbBasedSessions.cs" />
     <Compile Include="DynamoDbBasedSessionsConfiguration.cs" />
->>>>>>> Stubbed out basic session provider structure
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
