@@ -13,25 +13,12 @@ namespace Nancy.Session
 
     public class DynamoDbSessionRecord
     {
-        public static string GetHashKey(string sessionId, string applicationName)
-        {
-            return string.Format("{0}-{1}", applicationName, sessionId);
-        }
-
         public string ApplicationName { get; private set; }
         public string SessionId { get; private set; }
         public string Data { get; private set; }
         public DateTime CreateDate { get; private set; }
         public DateTime Expires { get; private set; }
         public String RecordFormatVersion { get; private set; }
-
-        public DynamoDbSessionRecord(   string sessionId, 
-                                        string applicationName, 
-                                        DateTime expires, 
-                                        string data) : this(sessionId, applicationName, expires, data, DateTime.UtcNow)
-        {
-            
-        }
 
         public DynamoDbSessionRecord(string sessionId, string applicationName, DateTime expires, string data, DateTime createDate)
         {
@@ -41,53 +28,47 @@ namespace Nancy.Session
             Data = data;
             CreateDate = createDate;
         }
-
-        public DynamoDbSessionRecord(Document document)
-        {
-            // TODO: populate from document
-        }
-
-        public Document AsDocument()
-        {
-            var document = new Document();
-
-            return document;
-        }
     }
 
     public class DynamoDbSessionRepository : IDynamoDbSessionRepository
     {
+        private const string SessionIdKey = "SessionIdKey";
         private const string CreateDateKey = "CreateDate";
         private const string ExpiresKey = "Expires";
         private const string SessionDataKey = "Data";
         private const string RecordFormatKey = "Ver";
+        private const string RecordFormat = "1.0";
 
-        private readonly string _sessionIdKey;
         private readonly string _tableName;
 
-        public DynamoDbSessionRepository(string sessionIdKey, string tableName)
+        public DynamoDbSessionRepository(string tableName)
         {
-            _sessionIdKey = sessionIdKey;
             _tableName = tableName;
         }
         
         public string GetSession(string sessionId, string applicationName)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
         public void SaveSession(string sessionId, string applicationName, string sessionData, DateTime expires, bool isNew)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
 
-            // TODO: Deal with creation times properly. At this point we dont know whether the session we are dealing with is new or already exists,
-            // so it is ambiguous whether to set create time now, or leave it as is in the db
-            var document = new DynamoDbSessionRecord(sessionId, applicationName, expires, sessionData).AsDocument();
+            var sessionDocument = new Document();
+
+            sessionDocument[SessionIdKey] = GetHashKey(sessionId, applicationName);
+            sessionDocument[ExpiresKey] = expires;
+            sessionDocument[SessionDataKey] = sessionData;
+            sessionDocument[RecordFormatKey] = RecordFormat;
 
             if (isNew)
             {
-                document.Remove("CreateDate");
+                sessionDocument[CreateDateKey] = DateTime.UtcNow;
             }
+
+            // Now go and save it
+
 
             
         }
@@ -95,6 +76,11 @@ namespace Nancy.Session
         public void DeleteSession(string sessionId, string applicationName)
         {
             throw new NotImplementedException();
+        }
+
+        public static string GetHashKey(string sessionId, string applicationName)
+        {
+            return String.Format("{0}-{1}", applicationName, sessionId);
         }
     }
 }
