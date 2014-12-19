@@ -11,21 +11,22 @@ namespace Nancy.DynamoDbBasedSessions
 {
     public class DynamoDbBasedSessionsConfiguration
     {
-        private readonly string _tableName;
-
-        public DynamoDbBasedSessionsConfiguration(string tableName)
+        private const string DefaultSessionIdCookieName = "__sid__";
+        private const string DefaultTableName = "NancySessions";
+        private const int DefaultSessionTimeoutInMinutes = 30;
+        public DynamoDbBasedSessionsConfiguration()
         {
-            _tableName = tableName;
-
-            SessionIdCookieName = "__sid__";
-            SessionTimeOutInMinutes = 30;
+            TableName = DefaultTableName;
+            SessionIdCookieName = DefaultSessionIdCookieName;
+            SessionTimeOutInMinutes = DefaultSessionTimeoutInMinutes;
             CryptographyConfiguration = CryptographyConfiguration.Default;
-            Repository = new DynamoDbSessionRepository("SessionId", tableName);
             DynamoDbConfig = new AmazonDynamoDBConfig();
             ClientFactory = _defaultClientFactory;
+            Serializer = new DefaultObjectSerializer();
         }
 
-        public Func<DynamoDbBasedSessionsConfiguration, AmazonDynamoDBClient> ClientFactory { get; set; } 
+        public Func<DynamoDbBasedSessionsConfiguration, AmazonDynamoDBClient> ClientFactory { get; set; }
+        public Func<DynamoDbBasedSessionsConfiguration, IDynamoDbSessionRepository> RepositoryFactory { get; set; } 
         public RegionEndpoint RegionEndpoint { get; set; }
         public AmazonDynamoDBConfig DynamoDbConfig { get; set; }
         public string ApplicationName { get; set; }
@@ -33,7 +34,23 @@ namespace Nancy.DynamoDbBasedSessions
         public IObjectSerializer Serializer { get; set; }
         public string SessionIdCookieName { get; set; }
         public int SessionTimeOutInMinutes { get; set; }
-        public IDynamoDbSessionRepository Repository { get; set; }
+        public string TableName { get; set; }
+
+        private IDynamoDbSessionRepository _repository;
+
+        public IDynamoDbSessionRepository Repository
+        {
+            get
+            {
+                if (_repository == null)
+                {
+                    _repository = RepositoryFactory(this);
+                }
+                return _repository;
+            }
+            set { _repository = value; }
+        }
+
         public string ProfileName { get; set; }
         public string AccessKeyId { get; set; }
         public string SecretAccessKey { get; set; }
@@ -41,7 +58,7 @@ namespace Nancy.DynamoDbBasedSessions
         {
             get
             {
-                if (string.IsNullOrEmpty(_tableName))
+                if (string.IsNullOrEmpty(TableName))
                 {
                     return false;
                 }
@@ -51,10 +68,15 @@ namespace Nancy.DynamoDbBasedSessions
                     return false;
                 }
 
+                if (String.IsNullOrEmpty(ApplicationName))
+                {
+                    return false;
+                }
+
                 return true;
             }
         }
-
+        
         public AmazonDynamoDBClient CreateClient()
         {
             if (RegionEndpoint != null)
@@ -81,5 +103,6 @@ namespace Nancy.DynamoDbBasedSessions
             return new AmazonDynamoDBClient();
         };
 
+        private readonly Func<DynamoDbBasedSessionsConfiguration, IDynamoDbSessionRepository> _defaultRepositoryFactory = c => new DynamoDbSessionRepository(c.TableName, c.CreateClient());
     }
 }

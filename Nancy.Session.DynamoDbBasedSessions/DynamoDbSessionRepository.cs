@@ -1,4 +1,5 @@
 ﻿using System;
+using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.OpsWorks.Model;
 
@@ -40,10 +41,12 @@ namespace Nancy.Session
         private const string RecordFormat = "1.0";
 
         private readonly string _tableName;
+        private readonly AmazonDynamoDBClient _client;
 
-        public DynamoDbSessionRepository(string tableName)
+        public DynamoDbSessionRepository(string tableName, AmazonDynamoDBClient client)
         {
             _tableName = tableName;
+            _client = client;
         }
         
         public string GetSession(string sessionId, string applicationName)
