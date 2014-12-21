@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Security.Permissions;
 using Amazon;
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
-using Amazon.Util;
 using Nancy.Cryptography;
 using Nancy.Session;
 
@@ -12,17 +11,32 @@ namespace Nancy.DynamoDbBasedSessions
     public class DynamoDbBasedSessionsConfiguration
     {
         private const string DefaultSessionIdCookieName = "__sid__";
+        private const string DefaultSessionIdAttributeName = "SessionId";
         private const string DefaultTableName = "NancySessions";
         private const int DefaultSessionTimeoutInMinutes = 30;
-        public DynamoDbBasedSessionsConfiguration()
+        private const int DefaultReadCapacityUnits = 10;
+        private const int DefaultWriteCapacityUnits = 5;
+
+        public DynamoDbBasedSessionsConfiguration(string applicationName)
         {
+            if (string.IsNullOrEmpty(applicationName))
+            {
+                throw new ArgumentNullException("applicationName");    
+            }
+            
+            ApplicationName = applicationName;
             TableName = DefaultTableName;
             SessionIdCookieName = DefaultSessionIdCookieName;
             SessionTimeOutInMinutes = DefaultSessionTimeoutInMinutes;
             CryptographyConfiguration = CryptographyConfiguration.Default;
             DynamoDbConfig = new AmazonDynamoDBConfig();
             ClientFactory = _defaultClientFactory;
+            RepositoryFactory = _defaultRepositoryFactory;
             Serializer = new DefaultObjectSerializer();
+            CreateTableIfNotExist = true;
+            ReadCapacityUnits = DefaultReadCapacityUnits;
+            WriteCapacityUnits = DefaultWriteCapacityUnits;
+            SessionIdAttributeName = DefaultSessionIdAttributeName;
         }
 
         public Func<DynamoDbBasedSessionsConfiguration, AmazonDynamoDBClient> ClientFactory { get; set; }
@@ -35,6 +49,13 @@ namespace Nancy.DynamoDbBasedSessions
         public string SessionIdCookieName { get; set; }
         public int SessionTimeOutInMinutes { get; set; }
         public string TableName { get; set; }
+        public bool CreateTableIfNotExist { get; set; }
+        public string SessionIdAttributeName { get; set; }
+        public string ProfileName { get; set; }
+        public string AccessKeyId { get; set; }
+        public string SecretAccessKey { get; set; }
+        public int ReadCapacityUnits { get; set; }
+        public int WriteCapacityUnits { get; set; }
 
         private IDynamoDbSessionRepository _repository;
 
@@ -48,12 +69,8 @@ namespace Nancy.DynamoDbBasedSessions
                 }
                 return _repository;
             }
-            set { _repository = value; }
         }
-
-        public string ProfileName { get; set; }
-        public string AccessKeyId { get; set; }
-        public string SecretAccessKey { get; set; }
+        
         public bool IsValid
         {
             get
@@ -100,9 +117,9 @@ namespace Nancy.DynamoDbBasedSessions
                 return new AmazonDynamoDBClient(credentials, c.DynamoDbConfig);
             }
 
-            return new AmazonDynamoDBClient();
+            return new AmazonDynamoDBClient(c.DynamoDbConfig);
         };
 
-        private readonly Func<DynamoDbBasedSessionsConfiguration, IDynamoDbSessionRepository> _defaultRepositoryFactory = c => new DynamoDbSessionRepository(c.TableName, c.CreateClient());
+        private readonly Func<DynamoDbBasedSessionsConfiguration, IDynamoDbSessionRepository> _defaultRepositoryFactory = c => new DynamoDbSessionRepository(c);
     }
 }
