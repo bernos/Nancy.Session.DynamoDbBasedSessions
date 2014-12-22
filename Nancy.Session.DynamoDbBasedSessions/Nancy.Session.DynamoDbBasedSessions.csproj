@@ -45,9 +45,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DynamoDbSessionRecord.cs" />
     <Compile Include="DynamoDbSessionRepository.cs" />
     <Compile Include="DynamoDbBasedSessions.cs" />
     <Compile Include="DynamoDbBasedSessionsConfiguration.cs" />
+    <Compile Include="IDynamoDbSessionRepository.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
