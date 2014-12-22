@@ -1,6 +1,7 @@
 ﻿using System;
 using Amazon;
 using Amazon.DynamoDBv2.DocumentModel;
+using Amazon.DynamoDBv2.Model;
 using Nancy.DynamoDbBasedSessions;
 using Xunit;
 
@@ -14,13 +15,15 @@ namespace Nancy.Session.Tests
         {
             _configuration= new DynamoDbBasedSessionsConfiguration("Test")
             {
-                RegionEndpoint = RegionEndpoint.APSoutheast2
+                RegionEndpoint = RegionEndpoint.APSoutheast2,
+                ProfileName = "personal"
             };
 
             _table = Table.LoadTable(_configuration.CreateClient(), _configuration.TableName);
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public void Should_Save_New_Session()
         {
             var repository = new DynamoDbSessionRepository(_configuration);
@@ -36,6 +39,7 @@ namespace Nancy.Session.Tests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public void Should_Update_ExistingSession()
         {
             var repository = new DynamoDbSessionRepository(_configuration);
@@ -53,6 +57,7 @@ namespace Nancy.Session.Tests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public void Should_Load_Session()
         {
             var repository = new DynamoDbSessionRepository(_configuration);
@@ -66,6 +71,31 @@ namespace Nancy.Session.Tests
 
             Assert.Equal(data, savedSession.Data);
             Assert.True(Math.Abs((expires - savedSession.Expires).Seconds) < 1);
+        }
+
+        [Fact]
+        [Trait("Category", "Integration")]
+        public void Should_Return_Null_When_Loading_Non_Existent_Session()
+        {
+            var repository = new DynamoDbSessionRepository(_configuration);
+            Assert.Null(repository.LoadSession("a","b"));
+        }
+
+        [Fact]
+        [Trait("Category", "Integration")]
+        public void Should_Delete_Session()
+        {
+            var repository = new DynamoDbSessionRepository(_configuration);
+            var sessionId = Guid.NewGuid().ToString();
+            var data = "blah blah";
+            var expires = DateTime.UtcNow.AddMinutes(10);
+
+            repository.SaveSession(sessionId, _configuration.ApplicationName, data, expires, true);
+
+            Assert.DoesNotThrow(() => repository.DeleteSession(sessionId, _configuration.ApplicationName));
+
+            Assert.Null(repository.LoadSession(sessionId, _configuration.ApplicationName));
+
         }
     }
 }

@@ -26,6 +26,11 @@ namespace Nancy.Session
         public DateTime Expires { get; private set; }
         public String RecordFormatVersion { get; private set; }
 
+        public bool HasExpired
+        {
+            get { return DateTime.Compare(Expires, DateTime.UtcNow) == -1; }
+        }
+
         public DynamoDbSessionRecord(string sessionId, string applicationName, DateTime expires, string data, DateTime createDate)
         {
             SessionId = sessionId;
@@ -60,6 +65,11 @@ namespace Nancy.Session
             var hashKey = GetHashKey(sessionId, applicationName);
             var document = _table.GetItem(hashKey);
 
+            if (document == null)
+            {
+                return null;
+            }
+
             // Need to be explicit about date time parsing
             var expires = DateTime.SpecifyKind(DateTime.Parse(document[ExpiresKey].AsString(), null, DateTimeStyles.RoundtripKind), DateTimeKind.Utc);
             var created = DateTime.SpecifyKind(DateTime.Parse(document[CreateDateKey].AsString(), null, DateTimeStyles.RoundtripKind), DateTimeKind.Utc);
@@ -91,7 +101,8 @@ namespace Nancy.Session
 
         public void DeleteSession(string sessionId, string applicationName)
         {
-            throw new NotImplementedException();
+            var hashKey = GetHashKey(sessionId, applicationName);
+            _table.DeleteItem(hashKey);
         }
 
         public string GetHashKey(string sessionId, string applicationName)
