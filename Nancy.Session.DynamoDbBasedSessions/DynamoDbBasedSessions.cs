@@ -144,11 +144,20 @@ namespace Nancy.Session
             {
                 var tokens = data.Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries);
 
+                foreach (var token in tokens)
+                {
+                    var rawKey = token.Substring(0, token.IndexOf('='));
+                    var rawValue = token.Substring(1 + token.IndexOf('='));
+
+                    var value = Configuration.Serializer.Deserialize(HttpUtility.UrlDecode(rawValue));
+                    dictionary[HttpUtility.UrlDecode(rawKey)] = value;
+                }
+                /*
                 foreach (var pair in tokens.Select(t => t.Split('=')).Where(p => p.Length == 2))
                 {
                     var value = Configuration.Serializer.Deserialize(HttpUtility.UrlDecode(pair[1]));
                     dictionary[HttpUtility.UrlDecode(pair[0])] = value;
-                }
+                }*/
             }
 
             return dictionary;

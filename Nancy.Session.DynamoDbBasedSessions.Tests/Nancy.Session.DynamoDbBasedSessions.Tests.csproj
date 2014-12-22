@@ -48,6 +48,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DynamoDbBasedSessionsTests.cs" />
     <Compile Include="DynamoDbSessionRecordTests.cs" />
     <Compile Include="DynamoDbSessionRepositoryTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
