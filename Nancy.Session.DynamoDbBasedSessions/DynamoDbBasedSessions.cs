@@ -68,7 +68,7 @@ namespace Nancy.Session
 
             _configuration = configuration;
 
-            SetupTable();
+            _configuration.TableInitializer.Initialize();
         }
 
         public DynamoDbBasedSessionsConfiguration Configuration
@@ -100,15 +100,17 @@ namespace Nancy.Session
             {
                 var sessionId = request.Cookies[Configuration.SessionIdCookieName];
 
-                // TODO: Load the session from dynamodb
-                var document = Configuration.Repository.LoadSession(sessionId, Configuration.ApplicationName);
+                var session = Configuration.Repository.LoadSession(sessionId, Configuration.ApplicationName);
 
-                // TODO: If the session has expired, delete it. Also delete the sessionId cookie in the request, to ensure we dont try to resave against the expired session id during the end request handler
-                //request.Cookies.Remove(Configuration.SessionIdCookieName);
+                if (session.HasExpired)
+                {
+                    Configuration.Repository.DeleteSession(sessionId, Configuration.ApplicationName);
+                    request.Cookies.Remove(Configuration.SessionIdCookieName);
 
+                    return new Session(new Dictionary<string, object>());
+                }
                 
-
-                return new Session(Deserialize(Decrypt(document.Data)));
+                return new Session(Deserialize(Decrypt(session.Data)));
             }
 
             return new Session(new Dictionary<string, object>());
@@ -183,96 +185,6 @@ namespace Nancy.Session
             var isHmacValid = HmacComparer.Compare(newHmac, hmacBytes, cryptographyConfiguration.HmacProvider.HmacLength);
 
             return isHmacValid ? cryptographyConfiguration.EncryptionProvider.Decrypt(encryptedData) : string.Empty;
-        }
-
-        private void SetupTable()
-        {
-            using (var client = Configuration.CreateClient())
-            {
-                try
-                {
-                    var table = Table.LoadTable(client, Configuration.TableName);
-                    ValidateTable(table);
-                }
-                catch (ResourceNotFoundException e)
-                {
-                    var table = CreateTable(client);
-                    ValidateTable(table);
-                }
-            }
-        }
-
-        private Table CreateTable(AmazonDynamoDBClient client)
-        {
-            var request = new CreateTableRequest
-            {
-                TableName = Configuration.TableName,
-                KeySchema = new List<KeySchemaElement>
-                {
-                    new KeySchemaElement
-                    {
-                        AttributeName = Configuration.SessionIdAttributeName,
-                        KeyType = KeyType.HASH
-                    }
-                },
-                AttributeDefinitions = new List<AttributeDefinition>
-                {
-                    new AttributeDefinition
-                    {
-                        AttributeName = Configuration.SessionIdAttributeName,
-                        AttributeType = ScalarAttributeType.S
-                    }
-                },
-                ProvisionedThroughput = new ProvisionedThroughput
-                {
-                    ReadCapacityUnits = Configuration.ReadCapacityUnits,
-                    WriteCapacityUnits = Configuration.WriteCapacityUnits
-                }
-            };
-
-            var response = client.CreateTable(request);
-
-            var describeTableRequest = new DescribeTableRequest
-            {
-                TableName = Configuration.TableName
-            };
-
-            var isActive = false;
-
-            while (!isActive)
-            {
-                Thread.Sleep(5000);
-                var describeTableResponse = client.DescribeTable(describeTableRequest);
-                var status = describeTableResponse.Table.TableStatus;
-
-                if (status == TableStatus.ACTIVE)
-                {
-                    isActive = true;
-                }
-            }
-
-            return Table.LoadTable(client, Configuration.TableName);
-        }
-
-        private void ValidateTable(Table table)
-        {
-            if (table.HashKeys.Count != 1)
-            {
-                throw new AmazonDynamoDBException(string.Format("Table {0} can't be used to store session data as it does not have a single hash key", Configuration.TableName));
-            }
-
-            var key = table.HashKeys[0];
-            var keyDescription = table.Keys[key];
-
-            if (keyDescription.Type != DynamoDBEntryType.String)
-            {
-                throw new AmazonDynamoDBException(string.Format("Table {0} can't be used to store session data because its hash key is not a string", Configuration.TableName));
-            }
-
-            if (table.RangeKeys.Count > 0)
-            {
-                throw new AmazonDynamoDBException(string.Format("Table {0} can't be used to store session data because it contains a range key"));
-            }
         }
     }
 }

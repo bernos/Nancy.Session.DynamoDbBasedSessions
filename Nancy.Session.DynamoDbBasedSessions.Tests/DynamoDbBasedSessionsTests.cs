@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Amazon;
-using Amazon.CodeDeploy.Model;
 using Nancy.DynamoDbBasedSessions;
+using NSubstitute;
 using Xunit;
 
 namespace Nancy.Session.Tests
@@ -12,19 +10,41 @@ namespace Nancy.Session.Tests
     public class DynamoDbBasedSessionsTests
     {
         private readonly DynamoDbBasedSessionsConfiguration _configuration;
+        private readonly IDynamoDbSessionRepository _repository;
 
         public DynamoDbBasedSessionsTests()
         {
+            _repository = new MockRepository();
+
             _configuration = new DynamoDbBasedSessionsConfiguration("Test")
             {
-                RegionEndpoint = RegionEndpoint.APSoutheast2,
-                ProfileName = "personal"
+                RepositoryFactory = c => _repository,
+                TableInitializerFactory = c => Substitute.For<IDynamoDbTableInitializer>()
             };
         }
 
         [Fact]
-        [Trait("Category", "Integration")]
-        public void Should_Save_Session_Data()
+        public void Should_Add_SessionId_Cookie_To_Response()
+        {
+            var sut = new DynamoDbBasedSessions(_configuration);
+
+            var session = new Session(new Dictionary<string, object>
+            {
+                {"key_one", "value_one"},
+                {"key_two", "value_two"}
+            });
+
+            var sessionId = Guid.NewGuid().ToString();
+            var response = new Response();
+
+            sut.Save(sessionId, session, response, true);
+
+            Assert.Equal(1, response.Cookies.Count(c => c.Name == _configuration.SessionIdCookieName));
+            Assert.Equal(sessionId, response.Cookies.Where(c => c.Name == _configuration.SessionIdCookieName).Select(c => c.Value).First());
+        }
+        
+        [Fact]
+        public void Should_Save_And_Load_Session_Data()
         {
             var sut = new DynamoDbBasedSessions(_configuration);
 
@@ -52,8 +72,13 @@ namespace Nancy.Session.Tests
             private readonly IDictionary<string, DynamoDbSessionRecord> _sessions;
 
             public MockRepository()
+                : this(new Dictionary<string, DynamoDbSessionRecord>())
             {
-                _sessions = new Dictionary<string, DynamoDbSessionRecord>();
+            }
+
+            public MockRepository(IDictionary<string, DynamoDbSessionRecord> sessions)
+            {
+                _sessions = sessions;
             }
 
             public DynamoDbSessionRecord LoadSession(string sessionId, string applicationName)

@@ -18,7 +18,7 @@ namespace Nancy.Session
         private const string RecordFormat = "1.0";
 
         private readonly DynamoDbBasedSessionsConfiguration _configuration;
-        private readonly AmazonDynamoDBClient _client;
+        private readonly IAmazonDynamoDB _client;
         private readonly Table _table;
 
         public DynamoDbSessionRepository(DynamoDbBasedSessionsConfiguration configuration)

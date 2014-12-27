@@ -32,6 +32,7 @@ namespace Nancy.DynamoDbBasedSessions
             DynamoDbConfig = new AmazonDynamoDBConfig();
             ClientFactory = _defaultClientFactory;
             RepositoryFactory = _defaultRepositoryFactory;
+            TableInitializerFactory = _defaultInitializerFactor;
             Serializer = new DefaultObjectSerializer();
             CreateTableIfNotExist = true;
             ReadCapacityUnits = DefaultReadCapacityUnits;
@@ -39,7 +40,8 @@ namespace Nancy.DynamoDbBasedSessions
             SessionIdAttributeName = DefaultSessionIdAttributeName;
         }
 
-        public Func<DynamoDbBasedSessionsConfiguration, AmazonDynamoDBClient> ClientFactory { get; set; }
+        public Func<DynamoDbBasedSessionsConfiguration, IDynamoDbTableInitializer> TableInitializerFactory { get; set; } 
+        public Func<DynamoDbBasedSessionsConfiguration, IAmazonDynamoDB> ClientFactory { get; set; }
         public Func<DynamoDbBasedSessionsConfiguration, IDynamoDbSessionRepository> RepositoryFactory { get; set; } 
         public RegionEndpoint RegionEndpoint { get; set; }
         public AmazonDynamoDBConfig DynamoDbConfig { get; set; }
@@ -70,6 +72,20 @@ namespace Nancy.DynamoDbBasedSessions
                 return _repository;
             }
         }
+
+        private IDynamoDbTableInitializer _tableInitializer;
+
+        public IDynamoDbTableInitializer TableInitializer
+        {
+            get
+            {
+                if (_tableInitializer == null)
+                {
+                    _tableInitializer = TableInitializerFactory(this);
+                }
+                return _tableInitializer;
+            }
+        }
         
         public bool IsValid
         {
@@ -94,7 +110,7 @@ namespace Nancy.DynamoDbBasedSessions
             }
         }
         
-        public AmazonDynamoDBClient CreateClient()
+        public IAmazonDynamoDB CreateClient()
         {
             if (RegionEndpoint != null)
             {
@@ -119,6 +135,8 @@ namespace Nancy.DynamoDbBasedSessions
 
             return new AmazonDynamoDBClient(c.DynamoDbConfig);
         };
+
+        private readonly Func<DynamoDbBasedSessionsConfiguration, IDynamoDbTableInitializer> _defaultInitializerFactor = c => new DynamoDbTableInitializer(c);
 
         private readonly Func<DynamoDbBasedSessionsConfiguration, IDynamoDbSessionRepository> _defaultRepositoryFactory = c => new DynamoDbSessionRepository(c);
     }

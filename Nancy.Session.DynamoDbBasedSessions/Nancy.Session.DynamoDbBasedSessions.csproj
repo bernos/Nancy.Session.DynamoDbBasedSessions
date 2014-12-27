@@ -49,6 +49,8 @@
     <Compile Include="DynamoDbSessionRepository.cs" />
     <Compile Include="DynamoDbBasedSessions.cs" />
     <Compile Include="DynamoDbBasedSessionsConfiguration.cs" />
+    <Compile Include="DynamoDbTableInitializer.cs" />
+    <Compile Include="IDynamoDbTableInitializer.cs" />
     <Compile Include="IDynamoDbSessionRepository.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

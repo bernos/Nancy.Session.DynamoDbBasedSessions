@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Nancy.Session.Tests
 {
-    public class DynamoDbSessionRepositoryTests
+    public class DynamoDbSessionRepositoryTests : IDisposable
     {
         private readonly DynamoDbBasedSessionsConfiguration _configuration;
         private readonly Table _table;
@@ -15,11 +15,26 @@ namespace Nancy.Session.Tests
         {
             _configuration= new DynamoDbBasedSessionsConfiguration("Test")
             {
-                RegionEndpoint = RegionEndpoint.APSoutheast2,
-                ProfileName = "personal"
+                TableName = "DynamoDbSessionRepositoryTests_Table",
+                DynamoDbConfig = new Amazon.DynamoDBv2.AmazonDynamoDBConfig
+                {
+                    ServiceURL = "http://localhost:8000"
+                }
             };
 
+            var initializer = new DynamoDbTableInitializer(_configuration);
+            initializer.Initialize();
+
             _table = Table.LoadTable(_configuration.CreateClient(), _configuration.TableName);
+        }
+
+        public void Dispose()
+        {
+            using (var client = _configuration.CreateClient())
+            {
+                client.DeleteTable(_configuration.TableName);
+                Console.WriteLine("Deleted test table '{0}'", _configuration.TableName);
+            }
         }
 
         [Fact]
