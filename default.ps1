@@ -4,7 +4,7 @@ Properties {
     $configuration = "Release"
 }
 
-Task Default -Depends Build
+Task Default -Depends Test
 
 Task Publish -Depends Package {
     foreach($project in $projects) {
@@ -26,6 +26,12 @@ Task Package -Depends Set-Versions,Build {
 
 Task Build -Depends Clean {
     Exec { msbuild "$Solution" /t:Build /p:Configuration=$configuration } 
+}
+
+task Test -Depends Build {
+	Exec { .\packages\xunit.runners.1.9.2\tools\xunit.console.clr4.exe ".\Nancy.Session.DynamoDbBasedSessions.Tests\bin\$configuration\Nancy.Session.DynamoDbBasedSessions.Tests.dll" /noshadow }
+	
+	
 }
 
 Task Clean {

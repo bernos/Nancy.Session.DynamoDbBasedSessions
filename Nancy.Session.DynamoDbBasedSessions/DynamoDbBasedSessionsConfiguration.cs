@@ -24,16 +24,15 @@ namespace Nancy.DynamoDbBasedSessions
                 throw new ArgumentNullException("applicationName");    
             }
             
+            SessionSerializer = new EncryptedSessionSerializer();
             ApplicationName = applicationName;
             TableName = DefaultTableName;
             SessionIdCookieName = DefaultSessionIdCookieName;
             SessionTimeOutInMinutes = DefaultSessionTimeoutInMinutes;
-            CryptographyConfiguration = CryptographyConfiguration.Default;
             DynamoDbConfig = new AmazonDynamoDBConfig();
             ClientFactory = _defaultClientFactory;
             RepositoryFactory = _defaultRepositoryFactory;
             TableInitializerFactory = _defaultInitializerFactor;
-            Serializer = new DefaultObjectSerializer();
             CreateTableIfNotExist = true;
             ReadCapacityUnits = DefaultReadCapacityUnits;
             WriteCapacityUnits = DefaultWriteCapacityUnits;
@@ -46,8 +45,8 @@ namespace Nancy.DynamoDbBasedSessions
         public RegionEndpoint RegionEndpoint { get; set; }
         public AmazonDynamoDBConfig DynamoDbConfig { get; set; }
         public string ApplicationName { get; set; }
-        public CryptographyConfiguration CryptographyConfiguration { get; set; }
-        public IObjectSerializer Serializer { get; set; }
+        public ISessionSerializer SessionSerializer { get; set; }
+        
         public string SessionIdCookieName { get; set; }
         public int SessionTimeOutInMinutes { get; set; }
         public string TableName { get; set; }
@@ -96,7 +95,7 @@ namespace Nancy.DynamoDbBasedSessions
                     return false;
                 }
 
-                if (Serializer == null)
+                if (SessionSerializer == null)
                 {
                     return false;
                 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Nancy.DynamoDbBasedSessions;
 using NSubstitute;
+using NSubstitute.Core;
 using Xunit;
 
 namespace Nancy.Session.Tests
@@ -65,6 +66,34 @@ namespace Nancy.Session.Tests
             var loadedSession = sut.Load(request);
 
             Assert.Equal("value_one", loadedSession["key_one"]);
+        }
+
+        [Fact]
+        public void Should_Delete_Expired_Session()
+        {
+            var applicationName = "abc";
+            var sessionId = "123";
+            var repository = Substitute.For<IDynamoDbSessionRepository>();
+            var request = new Request("GET", "/", "http");
+            
+            var configuration = new DynamoDbBasedSessionsConfiguration("Test")
+            {
+                RepositoryFactory = c => repository,
+                TableInitializerFactory = c => Substitute.For<IDynamoDbTableInitializer>()
+            };
+
+            var sut = new DynamoDbBasedSessions(configuration);
+
+            repository.LoadSession("abc", "123")
+                .ReturnsForAnyArgs(new DynamoDbSessionRecord(sessionId, applicationName, DateTime.UtcNow.AddMinutes(-10),
+                    "datahere", DateTime.UtcNow.AddMinutes(-20)));
+
+            request.Cookies.Add(configuration.SessionIdCookieName, sessionId);
+
+            var loadedSession = sut.Load(request);
+
+            Assert.Equal(0, loadedSession.Count);
+
         }
 
         private class MockRepository : IDynamoDbSessionRepository

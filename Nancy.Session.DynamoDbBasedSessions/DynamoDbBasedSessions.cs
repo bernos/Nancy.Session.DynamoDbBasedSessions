@@ -14,11 +14,11 @@ using Nancy.Helpers;
 
 namespace Nancy.Session
 {
-    public class DynamoDbBasedSessions : IObjectSerializerSelector
+    public class DynamoDbBasedSessions
     {
         private readonly DynamoDbBasedSessionsConfiguration _configuration;
 
-        public static IObjectSerializerSelector Enable(IPipelines pipelines, DynamoDbBasedSessionsConfiguration configuration)
+        public static void Enable(IPipelines pipelines, DynamoDbBasedSessionsConfiguration configuration)
         {
             if (pipelines == null)
             {
@@ -29,8 +29,6 @@ namespace Nancy.Session
 
             pipelines.BeforeRequest.AddItemToStartOfPipeline(ctx => LoadSession(ctx, sessionStore));
             pipelines.AfterRequest.AddItemToEndOfPipeline(ctx => SaveSession(ctx, sessionStore));
-
-            return sessionStore;
         }
 
         public static Response LoadSession(NancyContext context, DynamoDbBasedSessions sessionStore)
@@ -83,7 +81,8 @@ namespace Nancy.Session
                 return;
             }
 
-            var data = Encrypt(Serialize(session));
+            //var data = Encrypt(Serialize(session));
+            var data = Configuration.SessionSerializer.Serialize(session);
             var expires = DateTime.UtcNow.AddMinutes(Configuration.SessionTimeOutInMinutes);
             
             Configuration.Repository.SaveSession(sessionId, Configuration.ApplicationName, data, expires, isNew);
@@ -109,82 +108,15 @@ namespace Nancy.Session
 
                     return new Session(new Dictionary<string, object>());
                 }
-                
-                return new Session(Deserialize(Decrypt(session.Data)));
+
+                return Configuration.SessionSerializer.Deserialize(session.Data);
+                //return new Session(Deserialize(Decrypt(session.Data)));
             }
 
             return new Session(new Dictionary<string, object>());
         }
 
-        public void WithSerializer(IObjectSerializer newSerializer)
-        {
-            _configuration.Serializer = newSerializer;
-        }
 
-        private string Serialize(ISession session)
-        {
-            var sb = new StringBuilder();
-
-            foreach (var kvp in session)
-            {
-                var objectString = Configuration.Serializer.Serialize(kvp.Value);
-
-                sb.Append(HttpUtility.UrlEncode(kvp.Key));
-                sb.Append("=");
-                sb.Append(objectString);
-                sb.Append(";");
-            }
-
-            return sb.ToString();
-        }
-
-        private IDictionary<string, object> Deserialize(string data)
-        {
-            var dictionary = new Dictionary<string, object>();
-
-            if (!String.IsNullOrEmpty(data))
-            {
-                var tokens = data.Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries);
-
-                foreach (var token in tokens)
-                {
-                    var rawKey = token.Substring(0, token.IndexOf('='));
-                    var rawValue = token.Substring(1 + token.IndexOf('='));
-
-                    var value = Configuration.Serializer.Deserialize(HttpUtility.UrlDecode(rawValue));
-                    dictionary[HttpUtility.UrlDecode(rawKey)] = value;
-                }
-                /*
-                foreach (var pair in tokens.Select(t => t.Split('=')).Where(p => p.Length == 2))
-                {
-                    var value = Configuration.Serializer.Deserialize(HttpUtility.UrlDecode(pair[1]));
-                    dictionary[HttpUtility.UrlDecode(pair[0])] = value;
-                }*/
-            }
-
-            return dictionary;
-        } 
-
-        private string Encrypt(string clearText)
-        {
-            var cryptographyConfiguration = Configuration.CryptographyConfiguration;
-            var encryptedData = cryptographyConfiguration.EncryptionProvider.Encrypt(clearText);
-            var hmacBytes = cryptographyConfiguration.HmacProvider.GenerateHmac(encryptedData);
-
-            return string.Format("{0}{1}", Convert.ToBase64String(hmacBytes), encryptedData);
-        }
-
-        private string Decrypt(string cypherText)
-        {
-            var cryptographyConfiguration = Configuration.CryptographyConfiguration;
-            var hmacLength = Base64Helpers.GetBase64Length(cryptographyConfiguration.HmacProvider.HmacLength);
-            var hmacString = cypherText.Substring(0, hmacLength);
-            var encryptedData = cypherText.Substring(hmacLength);
-            var hmacBytes = Convert.FromBase64String(hmacString);
-            var newHmac = cryptographyConfiguration.HmacProvider.GenerateHmac(encryptedData);
-            var isHmacValid = HmacComparer.Compare(newHmac, hmacBytes, cryptographyConfiguration.HmacProvider.HmacLength);
-
-            return isHmacValid ? cryptographyConfiguration.EncryptionProvider.Decrypt(encryptedData) : string.Empty;
-        }
+        
     }
 }
