@@ -18,19 +18,18 @@ namespace Nancy.Session
 
         public void Initialize()
         {
-            using (var client = _configuration.CreateClient())
+            
+            try
             {
-                try
-                {
-                    var table = Table.LoadTable(client, _configuration.TableName);
-                    ValidateTable(table);
-                }
-                catch (ResourceNotFoundException e)
-                {
-                    var table = CreateTable(client);
-                    ValidateTable(table);
-                }
+                var table = Table.LoadTable(_configuration.DynamoDbClient, _configuration.TableName);
+                ValidateTable(table);
             }
+            catch (ResourceNotFoundException e)
+            {
+                var table = CreateTable(_configuration.DynamoDbClient);
+                ValidateTable(table);
+            }
+            
         }
 
         private Table CreateTable(IAmazonDynamoDB client)

@@ -23,29 +23,29 @@ namespace Nancy.Session.Tests
                 }
             };
 
+            Console.WriteLine("Initializing dynamodb table '{0}'", _configuration.TableName);
+            
             var initializer = new DynamoDbTableInitializer(_configuration);
             initializer.Initialize();
 
-            _table = Table.LoadTable(_configuration.CreateClient(), _configuration.TableName);
+            _table = Table.LoadTable(_configuration.DynamoDbClient, _configuration.TableName);
         }
 
         public void Dispose()
         {
-            using (var client = _configuration.CreateClient())
-            {
-                client.DeleteTable(_configuration.TableName);
-                Console.WriteLine("Deleted test table '{0}'", _configuration.TableName);
-            }
+            _configuration.DynamoDbClient.DeleteTable(_configuration.TableName);
+            Console.WriteLine("Deleted test table '{0}'", _configuration.TableName);
+            _configuration.Dispose();
         }
 
         [Fact]
-        [Trait("Category", "Integration")]
+        [Trait("Category", "Integration Tests")]
         public void Should_Save_New_Session()
         {
             var repository = new DynamoDbSessionRepository(_configuration);
             var sessionId = Guid.NewGuid().ToString();
             var hashKey = repository.GetHashKey(sessionId, _configuration.ApplicationName);
-            var sessionData = new Session();
+            var sessionData = new Session(new Dictionary<string, object> {{"key_one", "value_one"}});
 
             repository.SaveSession(sessionId, _configuration.ApplicationName, sessionData, DateTime.UtcNow.AddMinutes(30), true);
 
@@ -56,7 +56,7 @@ namespace Nancy.Session.Tests
         }
 
         [Fact]
-        [Trait("Category", "Integration")]
+        [Trait("Category", "Integration Tests")]
         public void Should_Update_ExistingSession()
         {
             var repository = new DynamoDbSessionRepository(_configuration);
@@ -74,7 +74,7 @@ namespace Nancy.Session.Tests
         }
 
         [Fact]
-        [Trait("Category", "Integration")]
+        [Trait("Category", "Integration Tests")]
         public void Should_Load_Session()
         {
             var repository = new DynamoDbSessionRepository(_configuration);
@@ -91,7 +91,7 @@ namespace Nancy.Session.Tests
         }
 
         [Fact]
-        [Trait("Category", "Integration")]
+        [Trait("Category", "Integration Tests")]
         public void Should_Return_Null_When_Loading_Non_Existent_Session()
         {
             var repository = new DynamoDbSessionRepository(_configuration);
@@ -99,7 +99,7 @@ namespace Nancy.Session.Tests
         }
 
         [Fact]
-        [Trait("Category", "Integration")]
+        [Trait("Category", "Integration Tests")]
         public void Should_Delete_Session()
         {
             var repository = new DynamoDbSessionRepository(_configuration);

@@ -6,7 +6,7 @@ using System.Globalization;
 
 namespace Nancy.Session
 {
-    public class DynamoDbSessionRepository : IDynamoDbSessionRepository, IDisposable
+    public class DynamoDbSessionRepository : IDynamoDbSessionRepository
     {
         private const string CreateDateKey = "CreateDate";
         private const string ExpiresKey = "Expires";
@@ -15,14 +15,12 @@ namespace Nancy.Session
         private const string RecordFormat = "1.0";
 
         private readonly DynamoDbBasedSessionsConfiguration _configuration;
-        private readonly IAmazonDynamoDB _client;
         private readonly Table _table;
-
+        
         public DynamoDbSessionRepository(DynamoDbBasedSessionsConfiguration configuration)
         {
             _configuration = configuration;
-            _client = configuration.CreateClient();
-            _table = Table.LoadTable(_client, _configuration.TableName);
+            _table = Table.LoadTable(_configuration.DynamoDbClient, _configuration.TableName);
         }
         
         public DynamoDbSessionRecord LoadSession(string sessionId, string applicationName)
@@ -75,11 +73,6 @@ namespace Nancy.Session
         public string GetHashKey(string sessionId, string applicationName)
         {
             return String.Format("{0}-{1}", applicationName, sessionId);
-        }
-
-        public void Dispose()
-        {
-            _client.Dispose();
         }
     }
 }

@@ -1,14 +1,12 @@
 ﻿using System;
 using Amazon;
 using Amazon.DynamoDBv2;
-using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
-using Nancy.Cryptography;
 using Nancy.Session;
 
 namespace Nancy.DynamoDbBasedSessions
 {
-    public class DynamoDbBasedSessionsConfiguration
+    public class DynamoDbBasedSessionsConfiguration : IDisposable
     {
         private const string DefaultSessionIdCookieName = "__sid__";
         private const string DefaultSessionIdAttributeName = "SessionId";
@@ -46,7 +44,6 @@ namespace Nancy.DynamoDbBasedSessions
         public AmazonDynamoDBConfig DynamoDbConfig { get; set; }
         public string ApplicationName { get; set; }
         public ISessionSerializer SessionSerializer { get; set; }
-        
         public string SessionIdCookieName { get; set; }
         public int SessionTimeOutInMinutes { get; set; }
         public string TableName { get; set; }
@@ -85,6 +82,25 @@ namespace Nancy.DynamoDbBasedSessions
                 return _tableInitializer;
             }
         }
+
+        private IAmazonDynamoDB _client;
+
+        public IAmazonDynamoDB DynamoDbClient
+        {
+            get
+            {
+                if (_client == null)
+                {
+                    if (RegionEndpoint != null)
+                    {
+                        DynamoDbConfig.RegionEndpoint = RegionEndpoint;
+                    }
+
+                    _client = ClientFactory(this);    
+                }
+                return _client;
+            }
+        }
         
         public bool IsValid
         {
@@ -109,15 +125,7 @@ namespace Nancy.DynamoDbBasedSessions
             }
         }
         
-        public IAmazonDynamoDB CreateClient()
-        {
-            if (RegionEndpoint != null)
-            {
-                DynamoDbConfig.RegionEndpoint = RegionEndpoint;
-            }
-
-            return ClientFactory(this);
-        }
+        
 
         private readonly Func<DynamoDbBasedSessionsConfiguration, AmazonDynamoDBClient> _defaultClientFactory = c =>
         {
@@ -138,5 +146,9 @@ namespace Nancy.DynamoDbBasedSessions
         private readonly Func<DynamoDbBasedSessionsConfiguration, IDynamoDbTableInitializer> _defaultInitializerFactor = c => new DynamoDbTableInitializer(c);
 
         private readonly Func<DynamoDbBasedSessionsConfiguration, IDynamoDbSessionRepository> _defaultRepositoryFactory = c => new DynamoDbSessionRepository(c);
+        public void Dispose()
+        {
+            DynamoDbClient.Dispose();
+        }
     }
 }
