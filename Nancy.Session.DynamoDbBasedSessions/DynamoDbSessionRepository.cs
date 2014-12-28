@@ -1,15 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using Amazon.DynamoDBv2;
+﻿using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DocumentModel;
-using Amazon.DynamoDBv2.Model;
-using Amazon.OpsWorks.Model;
 using Nancy.DynamoDbBasedSessions;
+using System;
+using System.Globalization;
 
 namespace Nancy.Session
 {
-    public class DynamoDbSessionRepository : IDynamoDbSessionRepository
+    public class DynamoDbSessionRepository : IDynamoDbSessionRepository, IDisposable
     {
         private const string CreateDateKey = "CreateDate";
         private const string ExpiresKey = "Expires";
@@ -78,6 +75,11 @@ namespace Nancy.Session
         public string GetHashKey(string sessionId, string applicationName)
         {
             return String.Format("{0}-{1}", applicationName, sessionId);
+        }
+
+        public void Dispose()
+        {
+            _client.Dispose();
         }
     }
 }
