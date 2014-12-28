@@ -84,9 +84,14 @@ namespace Nancy.Session.Tests
 
             var sut = new DynamoDbBasedSessions(configuration);
 
+            var session = new Session(new Dictionary<string, object>
+            {
+                {"key_one", "value_one"}
+            });
+
             repository.LoadSession("abc", "123")
                 .ReturnsForAnyArgs(new DynamoDbSessionRecord(sessionId, applicationName, DateTime.UtcNow.AddMinutes(-10),
-                    "datahere", DateTime.UtcNow.AddMinutes(-20)));
+                    session, DateTime.UtcNow.AddMinutes(-20)));
 
             request.Cookies.Add(configuration.SessionIdCookieName, sessionId);
 
@@ -122,7 +127,7 @@ namespace Nancy.Session.Tests
                 return null;
             }
 
-            public void SaveSession(string sessionId, string applicationName, string sessionData, DateTime expires, bool isNew)
+            public void SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires, bool isNew)
             {
                 var key = GetHashKey(sessionId, applicationName);
                 var session = new DynamoDbSessionRecord(sessionId, applicationName, expires, sessionData, DateTime.UtcNow);

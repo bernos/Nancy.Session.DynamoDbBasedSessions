@@ -6,7 +6,7 @@ namespace Nancy.Session
     {
         public string ApplicationName { get; private set; }
         public string SessionId { get; private set; }
-        public string Data { get; private set; }
+        public ISession Data { get; private set; }
         public DateTime CreateDate { get; private set; }
         public DateTime Expires { get; private set; }
         public String RecordFormatVersion { get; private set; }
@@ -16,7 +16,7 @@ namespace Nancy.Session
             get { return DateTime.Compare(Expires, DateTime.UtcNow) == -1; }
         }
 
-        public DynamoDbSessionRecord(string sessionId, string applicationName, DateTime expires, string data, DateTime createDate)
+        public DynamoDbSessionRecord(string sessionId, string applicationName, DateTime expires, ISession data, DateTime createDate)
         {
             if (string.IsNullOrEmpty(sessionId))
             {

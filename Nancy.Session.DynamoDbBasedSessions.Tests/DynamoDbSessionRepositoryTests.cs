@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Amazon;
 using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.DynamoDBv2.Model;
@@ -44,13 +45,14 @@ namespace Nancy.Session.Tests
             var repository = new DynamoDbSessionRepository(_configuration);
             var sessionId = Guid.NewGuid().ToString();
             var hashKey = repository.GetHashKey(sessionId, _configuration.ApplicationName);
-            var sessionData = "Hello there";
+            var sessionData = new Session();
 
             repository.SaveSession(sessionId, _configuration.ApplicationName, sessionData, DateTime.UtcNow.AddMinutes(30), true);
 
             var sessionDocument = _table.GetItem(hashKey);
 
-            Assert.Equal(sessionData, sessionDocument["Data"].AsString());
+            Assert.Equal(_configuration.SessionSerializer.Serialize(sessionData), sessionDocument["Data"].AsString());
+            
         }
 
         [Fact]
@@ -60,15 +62,15 @@ namespace Nancy.Session.Tests
             var repository = new DynamoDbSessionRepository(_configuration);
             var sessionId = Guid.NewGuid().ToString();
             var hashKey = repository.GetHashKey(sessionId, _configuration.ApplicationName);
-            var initialSessionData = "Initial session data";
-            var updatedSessionData = "Updated session data";
+            var initialSessionData = new Session(new Dictionary<string, object>{ { "key_one", "initial_one" } });
+            var updatedSessionData = new Session(new Dictionary<string, object> { { "key_one", "updated_one" } });
 
             repository.SaveSession(sessionId, _configuration.ApplicationName, initialSessionData, DateTime.UtcNow.AddMinutes(30), true);
             repository.SaveSession(sessionId, _configuration.ApplicationName, updatedSessionData, DateTime.UtcNow.AddMinutes(30), false);
 
             var sessionDocument = _table.GetItem(hashKey);
 
-            Assert.Equal(updatedSessionData, sessionDocument["Data"].AsString());
+            Assert.Equal(_configuration.SessionSerializer.Serialize(updatedSessionData), sessionDocument["Data"].AsString());
         }
 
         [Fact]
@@ -77,7 +79,7 @@ namespace Nancy.Session.Tests
         {
             var repository = new DynamoDbSessionRepository(_configuration);
             var sessionId = Guid.NewGuid().ToString();
-            var data = "session data here";
+            var data = new Session(new Dictionary<string, object> {{"key_one", "value_one"}});
             var expires = DateTime.UtcNow.AddMinutes(130);
 
             repository.SaveSession(sessionId, _configuration.ApplicationName, data, expires, true);
@@ -102,7 +104,7 @@ namespace Nancy.Session.Tests
         {
             var repository = new DynamoDbSessionRepository(_configuration);
             var sessionId = Guid.NewGuid().ToString();
-            var data = "blah blah";
+            var data = new Session(new Dictionary<string, object>{{"key_one", "value_one"}});
             var expires = DateTime.UtcNow.AddMinutes(10);
 
             repository.SaveSession(sessionId, _configuration.ApplicationName, data, expires, true);

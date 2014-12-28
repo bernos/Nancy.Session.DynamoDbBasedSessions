@@ -42,16 +42,18 @@ namespace Nancy.Session
             var expires = DateTime.SpecifyKind(DateTime.Parse(document[ExpiresKey].AsString(), null, DateTimeStyles.RoundtripKind), DateTimeKind.Utc);
             var created = DateTime.SpecifyKind(DateTime.Parse(document[CreateDateKey].AsString(), null, DateTimeStyles.RoundtripKind), DateTimeKind.Utc);
 
-            return new DynamoDbSessionRecord(sessionId, applicationName, expires, document[SessionDataKey].AsString(), created);
+            var session = _configuration.SessionSerializer.Deserialize(document[SessionDataKey].AsString());
+
+            return new DynamoDbSessionRecord(sessionId, applicationName, expires, session, created);
         }
 
-        public void SaveSession(string sessionId, string applicationName, string sessionData, DateTime expires, bool isNew)
+        public void SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires, bool isNew)
         {
             var sessionDocument = new Document();
             var hashKey = GetHashKey(sessionId, applicationName);
 
             sessionDocument[ExpiresKey] = expires;
-            sessionDocument[SessionDataKey] = sessionData;
+            sessionDocument[SessionDataKey] = _configuration.SessionSerializer.Serialize(sessionData);
             sessionDocument[RecordFormatKey] = RecordFormat;
             sessionDocument[_configuration.SessionIdAttributeName] = hashKey;
 

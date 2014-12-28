@@ -82,10 +82,10 @@ namespace Nancy.Session
             }
 
             //var data = Encrypt(Serialize(session));
-            var data = Configuration.SessionSerializer.Serialize(session);
+            //var data = Configuration.SessionSerializer.Serialize(session);
             var expires = DateTime.UtcNow.AddMinutes(Configuration.SessionTimeOutInMinutes);
             
-            Configuration.Repository.SaveSession(sessionId, Configuration.ApplicationName, data, expires, isNew);
+            Configuration.Repository.SaveSession(sessionId, Configuration.ApplicationName, session, expires, isNew);
             
             response.WithCookie(new NancyCookie(Configuration.SessionIdCookieName, sessionId)
             {
@@ -109,7 +109,8 @@ namespace Nancy.Session
                     return new Session(new Dictionary<string, object>());
                 }
 
-                return Configuration.SessionSerializer.Deserialize(session.Data);
+                return session.Data;
+                //return Configuration.SessionSerializer.Deserialize(session.Data);
                 //return new Session(Deserialize(Decrypt(session.Data)));
             }
 
