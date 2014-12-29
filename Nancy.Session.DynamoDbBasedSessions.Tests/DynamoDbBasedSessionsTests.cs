@@ -193,12 +193,14 @@ namespace Nancy.Session.Tests
                 return null;
             }
 
-            public void SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires, bool isNew)
+            public DynamoDbSessionRecord SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires, bool isNew)
             {
                 var key = GetHashKey(sessionId, applicationName);
                 var session = new DynamoDbSessionRecord(sessionId, applicationName, expires, sessionData, DateTime.UtcNow);
                     
                 _sessions[key] = session;
+
+                return session;
             }
 
             public void DeleteSession(string sessionId, string applicationName)

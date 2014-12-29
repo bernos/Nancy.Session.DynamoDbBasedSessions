@@ -1,5 +1,7 @@
-﻿using Amazon.DynamoDBv2;
+﻿using System.Security.Policy;
+using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DocumentModel;
+using Amazon.OpsWorks.Model;
 using Nancy.DynamoDbBasedSessions;
 using System;
 using System.Globalization;
@@ -33,16 +35,10 @@ namespace Nancy.Session
                 return null;
             }
 
-            // Need to be explicit about date time parsing
-            var expires = DateTime.SpecifyKind(DateTime.Parse(document[ExpiresKey].AsString(), null, DateTimeStyles.RoundtripKind), DateTimeKind.Utc);
-            var created = DateTime.SpecifyKind(DateTime.Parse(document[CreateDateKey].AsString(), null, DateTimeStyles.RoundtripKind), DateTimeKind.Utc);
-
-            var session = _configuration.SessionSerializer.Deserialize(document[SessionDataKey].AsString());
-
-            return new DynamoDbSessionRecord(sessionId, applicationName, expires, session, created);
+            return MapDocumentToSessionRecord(document);
         }
 
-        public void SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires, bool isNew)
+        public DynamoDbSessionRecord SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires, bool isNew)
         {
             var sessionDocument = new Document();
             var hashKey = GetHashKey(sessionId, applicationName);
@@ -55,13 +51,18 @@ namespace Nancy.Session
             if (isNew)
             {
                 sessionDocument[CreateDateKey] = DateTime.UtcNow;
-
                 _table.PutItem(sessionDocument);
+                return MapDocumentToSessionRecord(sessionDocument, false);
             }
-            else
+
+            var updatedDoc = _table.UpdateItem(sessionDocument, new UpdateItemOperationConfig
             {
-                _table.UpdateItem(sessionDocument);
-            }
+                ReturnValues = ReturnValues.AllOldAttributes
+            });
+
+            sessionDocument[CreateDateKey] = ParseDateTimeFromDynamoDbEntry(updatedDoc[CreateDateKey]);
+
+            return MapDocumentToSessionRecord(sessionDocument, false);
         }
 
         public void DeleteSession(string sessionId, string applicationName)
@@ -72,7 +73,58 @@ namespace Nancy.Session
 
         public string GetHashKey(string sessionId, string applicationName)
         {
-            return String.Format("{0}-{1}", applicationName, sessionId);
+            return new HashKeyInfo(sessionId, applicationName).HashKey;
+        }
+
+        private DynamoDbSessionRecord MapDocumentToSessionRecord(Document document, bool handleDatesFromDynamo = true)
+        {
+            var expires = document[ExpiresKey].AsDateTime();
+            var created = document[CreateDateKey].AsDateTime();
+            
+            if (handleDatesFromDynamo)
+            {
+                expires = ParseDateTimeFromDynamoDbEntry(document[ExpiresKey]);
+                created = ParseDateTimeFromDynamoDbEntry(document[CreateDateKey]);
+            }
+
+            // Need to be explicit about date time parsing
+            
+            var hashKeyInfo = new HashKeyInfo(document[_configuration.SessionIdAttributeName].AsString());
+            var session = _configuration.SessionSerializer.Deserialize(document[SessionDataKey].AsString());
+
+            return new DynamoDbSessionRecord(hashKeyInfo.SessionId, hashKeyInfo.ApplicationName, expires, session, created);
+        }
+
+        private DateTime ParseDateTimeFromDynamoDbEntry(DynamoDBEntry entry)
+        {
+            return DateTime.SpecifyKind(DateTime.Parse(entry.AsString(), null, DateTimeStyles.RoundtripKind), DateTimeKind.Utc);
+        }
+
+        private class HashKeyInfo
+        {
+            public HashKeyInfo(string sessionId, string applicationName)
+            {
+                ApplicationName = applicationName;
+                SessionId = sessionId;
+                HashKey = String.Format("{0}_{1}", applicationName, sessionId);
+            }
+            public HashKeyInfo(string hashKey)
+            {
+                var tokens = hashKey.Split('_');
+
+                if (tokens.Length != 2)
+                {
+                    throw new ArgumentException("Hashkey has invalid format", "hashKey");
+                }
+
+                ApplicationName = tokens[0];
+                SessionId = tokens[1];
+                HashKey = hashKey;
+            }
+
+            public string HashKey { get; private set; }
+            public string SessionId { get; private set; }
+            public string ApplicationName { get; private set; }
         }
     }
 }

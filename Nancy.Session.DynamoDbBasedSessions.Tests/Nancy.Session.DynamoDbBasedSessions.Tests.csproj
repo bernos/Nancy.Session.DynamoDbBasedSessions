@@ -54,6 +54,7 @@
     <Compile Include="DynamoDbBasedSessionsTests.cs" />
     <Compile Include="DynamoDbSessionRecordTests.cs" />
     <Compile Include="DynamoDbSessionRepositoryTests.cs" />
+    <Compile Include="IntegrationTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Stuff.cs" />
   </ItemGroup>

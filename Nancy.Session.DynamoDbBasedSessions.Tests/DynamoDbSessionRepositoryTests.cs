@@ -1,90 +1,75 @@
 ﻿using System;
 using System.Collections.Generic;
 using Amazon;
-using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.DynamoDBv2.Model;
-using Nancy.DynamoDbBasedSessions;
 using Xunit;
 
 namespace Nancy.Session.Tests
 {
-    public class DynamoDbSessionRepositoryTests : IDisposable
+    public class DynamoDbSessionRepositoryTests : IntegrationTest
     {
-        private readonly DynamoDbBasedSessionsConfiguration _configuration;
-        private readonly Table _table;
-        public DynamoDbSessionRepositoryTests()
-        {
-            _configuration= new DynamoDbBasedSessionsConfiguration("Test")
-            {
-                TableName = "DynamoDbSessionRepositoryTests_Table",
-                DynamoDbConfig = new Amazon.DynamoDBv2.AmazonDynamoDBConfig
-                {
-                    ServiceURL = "http://localhost:8000"
-                }
-            };
-
-            Console.WriteLine("Initializing dynamodb table '{0}'", _configuration.TableName);
-            
-            var initializer = new DynamoDbTableInitializer(_configuration);
-            initializer.Initialize();
-
-            _table = Table.LoadTable(_configuration.DynamoDbClient, _configuration.TableName);
-        }
-
-        public void Dispose()
-        {
-            _configuration.DynamoDbClient.DeleteTable(_configuration.TableName);
-            Console.WriteLine("Deleted test table '{0}'", _configuration.TableName);
-            _configuration.Dispose();
-        }
-
         [Fact]
         [Trait("Category", "Integration Tests")]
         public void Should_Save_New_Session()
         {
-            var repository = new DynamoDbSessionRepository(_configuration);
+            var repository = new DynamoDbSessionRepository(Configuration);
             var sessionId = Guid.NewGuid().ToString();
-            var hashKey = repository.GetHashKey(sessionId, _configuration.ApplicationName);
+            var hashKey = repository.GetHashKey(sessionId, Configuration.ApplicationName);
             var sessionData = new Session(new Dictionary<string, object> {{"key_one", "value_one"}});
 
-            repository.SaveSession(sessionId, _configuration.ApplicationName, sessionData, DateTime.UtcNow.AddMinutes(30), true);
+            repository.SaveSession(sessionId, Configuration.ApplicationName, sessionData, DateTime.UtcNow.AddMinutes(30), true);
 
-            var sessionDocument = _table.GetItem(hashKey);
+            var sessionDocument = Table.GetItem(hashKey);
 
-            Assert.Equal(_configuration.SessionSerializer.Serialize(sessionData), sessionDocument["Data"].AsString());
-            
+            Assert.Equal(Configuration.SessionSerializer.Serialize(sessionData), sessionDocument["Data"].AsString());
         }
+
+        [Fact]
+        [Trait("Category", "Integration Tests")]
+        public void Should_Set_Created_Time()
+        {
+            var repository = new DynamoDbSessionRepository(Configuration);
+            var sessionId = Guid.NewGuid().ToString();
+            var sessionData = new Session(new Dictionary<string, object> { { "key_one", "value_one" } });
+
+            var session = repository.SaveSession(sessionId, Configuration.ApplicationName, sessionData, DateTime.UtcNow.AddMinutes(30), true);
+
+            Assert.True((DateTime.UtcNow - session.CreateDate).Seconds < 10);
+        }
+
 
         [Fact]
         [Trait("Category", "Integration Tests")]
         public void Should_Update_ExistingSession()
         {
-            var repository = new DynamoDbSessionRepository(_configuration);
+            var repository = new DynamoDbSessionRepository(Configuration);
             var sessionId = Guid.NewGuid().ToString();
-            var hashKey = repository.GetHashKey(sessionId, _configuration.ApplicationName);
+            var hashKey = repository.GetHashKey(sessionId, Configuration.ApplicationName);
             var initialSessionData = new Session(new Dictionary<string, object>{ { "key_one", "initial_one" } });
             var updatedSessionData = new Session(new Dictionary<string, object> { { "key_one", "updated_one" } });
 
-            repository.SaveSession(sessionId, _configuration.ApplicationName, initialSessionData, DateTime.UtcNow.AddMinutes(30), true);
-            repository.SaveSession(sessionId, _configuration.ApplicationName, updatedSessionData, DateTime.UtcNow.AddMinutes(30), false);
+            var initialSession = repository.SaveSession(sessionId, Configuration.ApplicationName, initialSessionData, DateTime.UtcNow.AddMinutes(30), true);
+            var updatedSession = repository.SaveSession(sessionId, Configuration.ApplicationName, updatedSessionData, DateTime.UtcNow.AddMinutes(30), false);
+            
+            Assert.True(Math.Abs((initialSession.CreateDate - updatedSession.CreateDate).Seconds) < 1);
 
-            var sessionDocument = _table.GetItem(hashKey);
+            var sessionDocument = Table.GetItem(hashKey);
 
-            Assert.Equal(_configuration.SessionSerializer.Serialize(updatedSessionData), sessionDocument["Data"].AsString());
+            Assert.Equal(Configuration.SessionSerializer.Serialize(updatedSessionData), sessionDocument["Data"].AsString());
         }
 
         [Fact]
         [Trait("Category", "Integration Tests")]
         public void Should_Load_Session()
         {
-            var repository = new DynamoDbSessionRepository(_configuration);
+            var repository = new DynamoDbSessionRepository(Configuration);
             var sessionId = Guid.NewGuid().ToString();
             var data = new Session(new Dictionary<string, object> {{"key_one", "value_one"}});
             var expires = DateTime.UtcNow.AddMinutes(130);
 
-            repository.SaveSession(sessionId, _configuration.ApplicationName, data, expires, true);
+            repository.SaveSession(sessionId, Configuration.ApplicationName, data, expires, true);
 
-            var savedSession = repository.LoadSession(sessionId, _configuration.ApplicationName);
+            var savedSession = repository.LoadSession(sessionId, Configuration.ApplicationName);
 
             Assert.Equal(data, savedSession.Data);
             Assert.True(Math.Abs((expires - savedSession.Expires).Seconds) < 1);
@@ -94,7 +79,7 @@ namespace Nancy.Session.Tests
         [Trait("Category", "Integration Tests")]
         public void Should_Return_Null_When_Loading_Non_Existent_Session()
         {
-            var repository = new DynamoDbSessionRepository(_configuration);
+            var repository = new DynamoDbSessionRepository(Configuration);
             Assert.Null(repository.LoadSession("a","b"));
         }
 
@@ -102,16 +87,16 @@ namespace Nancy.Session.Tests
         [Trait("Category", "Integration Tests")]
         public void Should_Delete_Session()
         {
-            var repository = new DynamoDbSessionRepository(_configuration);
+            var repository = new DynamoDbSessionRepository(Configuration);
             var sessionId = Guid.NewGuid().ToString();
             var data = new Session(new Dictionary<string, object>{{"key_one", "value_one"}});
             var expires = DateTime.UtcNow.AddMinutes(10);
 
-            repository.SaveSession(sessionId, _configuration.ApplicationName, data, expires, true);
+            repository.SaveSession(sessionId, Configuration.ApplicationName, data, expires, true);
 
-            Assert.DoesNotThrow(() => repository.DeleteSession(sessionId, _configuration.ApplicationName));
+            Assert.DoesNotThrow(() => repository.DeleteSession(sessionId, Configuration.ApplicationName));
 
-            Assert.Null(repository.LoadSession(sessionId, _configuration.ApplicationName));
+            Assert.Null(repository.LoadSession(sessionId, Configuration.ApplicationName));
 
         }
     }
