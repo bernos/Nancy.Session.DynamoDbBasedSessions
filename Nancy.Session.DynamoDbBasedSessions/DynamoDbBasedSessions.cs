@@ -46,10 +46,11 @@ namespace Nancy.Session
         public static void SaveSession(NancyContext context, DynamoDbBasedSessions sessionStore)
         {
             var cookieName = sessionStore.Configuration.SessionIdCookieName;
-            var isNew = context.Request.Cookies.ContainsKey(cookieName);
-            var sessionId = isNew ? context.Request.Cookies[cookieName] : Guid.NewGuid().ToString();
+            var sessionId = context.Request.Cookies.ContainsKey(cookieName)
+                ? context.Request.Cookies[cookieName]
+                : String.Empty;
 
-            sessionStore.Save(sessionId, context.Request.Session, context.Response, isNew);
+            sessionStore.Save(sessionId, context.Request.Session, context.Response);
         }
 
         public DynamoDbBasedSessions(DynamoDbBasedSessionsConfiguration configuration)
@@ -74,23 +75,22 @@ namespace Nancy.Session
             get { return _configuration; }
         }
 
-        public void Save(string sessionId, ISession session, Response response, bool isNew)
+        public DynamoDbSessionRecord Save(string sessionId, ISession session, Response response)
         {
             if (session == null)
             {
-                return;
+                return null;
             }
 
-            //var data = Encrypt(Serialize(session));
-            //var data = Configuration.SessionSerializer.Serialize(session);
             var expires = DateTime.UtcNow.AddMinutes(Configuration.SessionTimeOutInMinutes);
+            var record = Configuration.Repository.SaveSession(sessionId, Configuration.ApplicationName, session, expires);
             
-            Configuration.Repository.SaveSession(sessionId, Configuration.ApplicationName, session, expires, isNew);
-            
-            response.WithCookie(new NancyCookie(Configuration.SessionIdCookieName, sessionId)
+            response.WithCookie(new NancyCookie(Configuration.SessionIdCookieName, record.SessionId)
             {
                 Expires = expires.AddSeconds(10)
             });
+
+            return record;
         }
 
         public ISession Load(Request request)

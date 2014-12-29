@@ -30,31 +30,16 @@ namespace Nancy.Session
             return document == null ? null : MapDocumentToSessionRecord(document);
         }
 
-        public DynamoDbSessionRecord SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires, bool isNew)
+        public DynamoDbSessionRecord SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires)
         {
+            var isNew = string.IsNullOrEmpty(sessionId);
             var sessionDocument = new Document();
-            var hashKey = GetHashKey(sessionId, applicationName);
-
+            
             sessionDocument[ExpiresKey] = expires;
             sessionDocument[SessionDataKey] = _configuration.SessionSerializer.Serialize(sessionData);
             sessionDocument[RecordFormatKey] = RecordFormat;
-            sessionDocument[_configuration.SessionIdAttributeName] = hashKey;
-
-            if (isNew)
-            {
-                sessionDocument[CreateDateKey] = DateTime.UtcNow;
-                _table.PutItem(sessionDocument);
-                return MapDocumentToSessionRecord(sessionDocument, false);
-            }
-
-            var updatedDoc = _table.UpdateItem(sessionDocument, new UpdateItemOperationConfig
-            {
-                ReturnValues = ReturnValues.AllOldAttributes
-            });
-
-            sessionDocument[CreateDateKey] = ParseDateTimeFromDynamoDbEntry(updatedDoc[CreateDateKey]);
-
-            return MapDocumentToSessionRecord(sessionDocument, false);
+            
+            return isNew ? AddSession(applicationName, sessionDocument) : UpdateSession(sessionId, applicationName, sessionDocument);
         }
 
         public void DeleteSession(string sessionId, string applicationName)
@@ -66,6 +51,31 @@ namespace Nancy.Session
         public string GetHashKey(string sessionId, string applicationName)
         {
             return new HashKeyInfo(sessionId, applicationName).HashKey;
+        }
+
+        private DynamoDbSessionRecord AddSession(string applicationName, Document session)
+        {
+            var sessionId = Guid.NewGuid().ToString();
+
+            session[CreateDateKey] = DateTime.UtcNow;
+            session[_configuration.SessionIdAttributeName] = GetHashKey(sessionId, applicationName);
+
+            _table.PutItem(session);
+            return MapDocumentToSessionRecord(session, false);
+        }
+
+        private DynamoDbSessionRecord UpdateSession(string sessionId, string applicationName, Document session)
+        {
+            session[_configuration.SessionIdAttributeName] = GetHashKey(sessionId, applicationName);
+
+            var updatedDoc = _table.UpdateItem(session, new UpdateItemOperationConfig
+            {
+                ReturnValues = ReturnValues.AllOldAttributes
+            });
+
+            session[CreateDateKey] = ParseDateTimeFromDynamoDbEntry(updatedDoc[CreateDateKey]);
+
+            return MapDocumentToSessionRecord(session, false);
         }
 
         private DynamoDbSessionRecord MapDocumentToSessionRecord(Document document, bool handleDatesFromDynamo = true)

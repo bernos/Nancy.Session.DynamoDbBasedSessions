@@ -42,7 +42,7 @@ namespace Nancy.Session.Tests
             var sessionId = Guid.NewGuid().ToString();
             var response = new Response();
 
-            sut.Save(sessionId, session, response, true);
+            sut.Save(sessionId, session, response);
 
             Assert.Equal(1, response.Cookies.Count(c => c.Name == _configuration.SessionIdCookieName));
             Assert.Equal(sessionId, response.Cookies.Where(c => c.Name == _configuration.SessionIdCookieName).Select(c => c.Value).First());
@@ -55,7 +55,7 @@ namespace Nancy.Session.Tests
             var sessions = new List<ISession>();
 
             var repository = Substitute.For<IDynamoDbSessionRepository>();
-            repository.WhenForAnyArgs(r => r.SaveSession(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ISession>(), Arg.Any<DateTime>(), Arg.Any<bool>())).Do(x => sessions.Add(x.Arg<ISession>()));
+            repository.WhenForAnyArgs(r => r.SaveSession(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ISession>(), Arg.Any<DateTime>())).Do(x => sessions.Add(x.Arg<ISession>()));
 
             var session = new Session(new Dictionary<string, object>
             {
@@ -72,7 +72,7 @@ namespace Nancy.Session.Tests
 
             var sut = new DynamoDbBasedSessions(configuration);
 
-            sut.Save(Guid.NewGuid().ToString(), session, new Response(), true);
+            sut.Save("", session, new Response());
 
             Assert.Equal(session, sessions.First());
         }
@@ -125,7 +125,7 @@ namespace Nancy.Session.Tests
             var request = new Request("GET", "/", "http");
             var response = new Response();
 
-            sut.Save(sessionId, session, response, true);
+            sut.Save(sessionId, session, response);
             request.Cookies.Add(_configuration.SessionIdCookieName, sessionId);
             Assert.Equal(sessionId, response.Cookies.First(c => c.Name == _configuration.SessionIdCookieName).Value);
 
@@ -193,8 +193,13 @@ namespace Nancy.Session.Tests
                 return null;
             }
 
-            public DynamoDbSessionRecord SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires, bool isNew)
+            public DynamoDbSessionRecord SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires)
             {
+                if (string.IsNullOrEmpty(sessionId))
+                {
+                    sessionId = Guid.NewGuid().ToString();
+                }
+
                 var key = GetHashKey(sessionId, applicationName);
                 var session = new DynamoDbSessionRecord(sessionId, applicationName, expires, sessionData, DateTime.UtcNow);
                     
