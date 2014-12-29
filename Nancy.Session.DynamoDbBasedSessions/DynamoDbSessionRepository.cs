@@ -1,7 +1,4 @@
-﻿using System.Security.Policy;
-using Amazon.DynamoDBv2;
-using Amazon.DynamoDBv2.DocumentModel;
-using Amazon.OpsWorks.Model;
+﻿using Amazon.DynamoDBv2.DocumentModel;
 using Nancy.DynamoDbBasedSessions;
 using System;
 using System.Globalization;
@@ -30,12 +27,7 @@ namespace Nancy.Session
             var hashKey = GetHashKey(sessionId, applicationName);
             var document = _table.GetItem(hashKey);
 
-            if (document == null)
-            {
-                return null;
-            }
-
-            return MapDocumentToSessionRecord(document);
+            return document == null ? null : MapDocumentToSessionRecord(document);
         }
 
         public DynamoDbSessionRecord SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires, bool isNew)
@@ -87,8 +79,6 @@ namespace Nancy.Session
                 created = ParseDateTimeFromDynamoDbEntry(document[CreateDateKey]);
             }
 
-            // Need to be explicit about date time parsing
-            
             var hashKeyInfo = new HashKeyInfo(document[_configuration.SessionIdAttributeName].AsString());
             var session = _configuration.SessionSerializer.Deserialize(document[SessionDataKey].AsString());
 
