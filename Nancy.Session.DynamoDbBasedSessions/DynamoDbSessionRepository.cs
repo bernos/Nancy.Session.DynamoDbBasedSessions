@@ -30,6 +30,11 @@ namespace Nancy.Session
             return document == null ? null : MapDocumentToSessionRecord(document);
         }
 
+        public DynamoDbSessionRecord SaveSession(string applicationName, ISession sessionData, DateTime expires)
+        {
+            return SaveSession(string.Empty, applicationName, sessionData, expires);
+        }
+
         public DynamoDbSessionRecord SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires)
         {
             var isNew = string.IsNullOrEmpty(sessionId);

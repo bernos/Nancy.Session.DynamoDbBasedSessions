@@ -110,8 +110,6 @@ namespace Nancy.Session
                 }
 
                 return session.Data;
-                //return Configuration.SessionSerializer.Deserialize(session.Data);
-                //return new Session(Deserialize(Decrypt(session.Data)));
             }
 
             return new Session(new Dictionary<string, object>());

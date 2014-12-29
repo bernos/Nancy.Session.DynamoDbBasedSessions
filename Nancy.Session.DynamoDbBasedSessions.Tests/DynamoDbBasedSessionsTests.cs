@@ -193,6 +193,11 @@ namespace Nancy.Session.Tests
                 return null;
             }
 
+            public DynamoDbSessionRecord SaveSession(string applicationName, ISession sessionData, DateTime expires)
+            {
+                return SaveSession(string.Empty, applicationName, sessionData, expires);
+            }
+
             public DynamoDbSessionRecord SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires)
             {
                 if (string.IsNullOrEmpty(sessionId))
