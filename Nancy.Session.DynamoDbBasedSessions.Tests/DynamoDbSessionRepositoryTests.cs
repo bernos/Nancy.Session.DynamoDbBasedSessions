@@ -15,7 +15,7 @@ namespace Nancy.Session.Tests
             var repository = new DynamoDbSessionRepository(Configuration);
             var sessionData = new Session(new Dictionary<string, object> {{"key_one", "value_one"}});
 
-            var session = repository.SaveSession(String.Empty, Configuration.ApplicationName, sessionData, DateTime.UtcNow.AddMinutes(30));
+            var session = repository.SaveSession(Guid.Empty, Configuration.ApplicationName, sessionData, DateTime.UtcNow.AddMinutes(30));
 
             var sessionDocument = Table.GetItem(repository.GetHashKey(session.SessionId, Configuration.ApplicationName));
 
@@ -29,7 +29,7 @@ namespace Nancy.Session.Tests
             var repository = new DynamoDbSessionRepository(Configuration);
             var sessionData = new Session(new Dictionary<string, object> { { "key_one", "value_one" } });
 
-            var session = repository.SaveSession(string.Empty, Configuration.ApplicationName, sessionData, DateTime.UtcNow.AddMinutes(30));
+            var session = repository.SaveSession(Guid.Empty, Configuration.ApplicationName, sessionData, DateTime.UtcNow.AddMinutes(30));
 
             Assert.True((DateTime.UtcNow - session.CreateDate).Seconds < 10);
         }
@@ -43,7 +43,7 @@ namespace Nancy.Session.Tests
             var initialSessionData = new Session(new Dictionary<string, object>{ { "key_one", "initial_one" } });
             var updatedSessionData = new Session(new Dictionary<string, object> { { "key_one", "updated_one" } });
 
-            var initialSession = repository.SaveSession(string.Empty, Configuration.ApplicationName, initialSessionData, DateTime.UtcNow.AddMinutes(30));
+            var initialSession = repository.SaveSession(Guid.Empty, Configuration.ApplicationName, initialSessionData, DateTime.UtcNow.AddMinutes(30));
             var updatedSession = repository.SaveSession(initialSession.SessionId, Configuration.ApplicationName, updatedSessionData, DateTime.UtcNow.AddMinutes(30));
             
             Assert.True(Math.Abs((initialSession.CreateDate - updatedSession.CreateDate).Seconds) < 1);
@@ -61,7 +61,7 @@ namespace Nancy.Session.Tests
             var data = new Session(new Dictionary<string, object> {{"key_one", "value_one"}});
             var expires = DateTime.UtcNow.AddMinutes(130);
 
-            var session = repository.SaveSession(string.Empty, Configuration.ApplicationName, data, expires);
+            var session = repository.SaveSession(Guid.Empty, Configuration.ApplicationName, data, expires);
 
             var savedSession = repository.LoadSession(session.SessionId, Configuration.ApplicationName);
 
@@ -74,7 +74,7 @@ namespace Nancy.Session.Tests
         public void Should_Return_Null_When_Loading_Non_Existent_Session()
         {
             var repository = new DynamoDbSessionRepository(Configuration);
-            Assert.Null(repository.LoadSession("a","b"));
+            Assert.Null(repository.LoadSession(Guid.NewGuid(),"b"));
         }
 
         [Fact]
@@ -85,7 +85,7 @@ namespace Nancy.Session.Tests
             var data = new Session(new Dictionary<string, object>{{"key_one", "value_one"}});
             var expires = DateTime.UtcNow.AddMinutes(10);
 
-            var session = repository.SaveSession(string.Empty, Configuration.ApplicationName, data, expires);
+            var session = repository.SaveSession(Guid.Empty, Configuration.ApplicationName, data, expires);
 
             Assert.DoesNotThrow(() => repository.DeleteSession(session.SessionId, Configuration.ApplicationName));
 

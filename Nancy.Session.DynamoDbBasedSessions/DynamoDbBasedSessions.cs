@@ -47,8 +47,8 @@ namespace Nancy.Session
         {
             var cookieName = sessionStore.Configuration.SessionIdCookieName;
             var sessionId = context.Request.Cookies.ContainsKey(cookieName)
-                ? context.Request.Cookies[cookieName]
-                : String.Empty;
+                ? Guid.Parse(context.Request.Cookies[cookieName])
+                : Guid.Empty;
 
             sessionStore.Save(sessionId, context.Request.Session, context.Response);
         }
@@ -75,7 +75,7 @@ namespace Nancy.Session
             get { return _configuration; }
         }
 
-        public DynamoDbSessionRecord Save(string sessionId, ISession session, Response response)
+        public DynamoDbSessionRecord Save(Guid sessionId, ISession session, Response response)
         {
             if (session == null)
             {
@@ -85,7 +85,7 @@ namespace Nancy.Session
             var expires = DateTime.UtcNow.AddMinutes(Configuration.SessionTimeOutInMinutes);
             var record = Configuration.Repository.SaveSession(sessionId, Configuration.ApplicationName, session, expires);
             
-            response.WithCookie(new NancyCookie(Configuration.SessionIdCookieName, record.SessionId)
+            response.WithCookie(new NancyCookie(Configuration.SessionIdCookieName, record.SessionId.ToString())
             {
                 Expires = expires.AddSeconds(10)
             });
@@ -97,7 +97,7 @@ namespace Nancy.Session
         {
             if (request.Cookies.ContainsKey(Configuration.SessionIdCookieName))
             {
-                var sessionId = request.Cookies[Configuration.SessionIdCookieName];
+                var sessionId = Guid.Parse(request.Cookies[Configuration.SessionIdCookieName]);
 
                 var session = Configuration.Repository.LoadSession(sessionId, Configuration.ApplicationName);
 

@@ -9,7 +9,7 @@ namespace Nancy.Session.Tests
         [Trait("Category", "Unit Tests")]
         public void Should_Correctly_Determine_Expiry_Status()
         {
-            var record = new DynamoDbSessionRecord("abc123", "may application", DateTime.UtcNow.AddSeconds(-1), new Session(), 
+            var record = new DynamoDbSessionRecord(Guid.NewGuid(), "may application", DateTime.UtcNow.AddSeconds(-1), new Session(), 
                 DateTime.UtcNow);
 
             Assert.True(record.HasExpired);
@@ -20,7 +20,7 @@ namespace Nancy.Session.Tests
         public void Should_Throw_For_Invalid_SessionId()
         {
             Assert.Throws<ArgumentNullException>(
-                () => new DynamoDbSessionRecord("", "asdf", DateTime.UtcNow, new Session(), DateTime.UtcNow));
+                () => new DynamoDbSessionRecord(Guid.Empty, "asdf", DateTime.UtcNow, new Session(), DateTime.UtcNow));
         }
 
         [Fact]
@@ -28,7 +28,7 @@ namespace Nancy.Session.Tests
         public void Should_Throw_For_Invalid_ApplicationName()
         {
             Assert.Throws<ArgumentNullException>(
-                () => new DynamoDbSessionRecord("asdf", "", DateTime.UtcNow, new Session(), DateTime.UtcNow));
+                () => new DynamoDbSessionRecord(Guid.NewGuid(), "", DateTime.UtcNow, new Session(), DateTime.UtcNow));
         }
     }
 }

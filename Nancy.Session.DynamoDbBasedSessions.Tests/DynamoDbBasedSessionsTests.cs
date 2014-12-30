@@ -39,13 +39,13 @@ namespace Nancy.Session.Tests
                 {"key_two", "value_two"}
             });
 
-            var sessionId = Guid.NewGuid().ToString();
+            var sessionId = Guid.NewGuid();
             var response = new Response();
 
             sut.Save(sessionId, session, response);
 
             Assert.Equal(1, response.Cookies.Count(c => c.Name == _configuration.SessionIdCookieName));
-            Assert.Equal(sessionId, response.Cookies.Where(c => c.Name == _configuration.SessionIdCookieName).Select(c => c.Value).First());
+            Assert.Equal(sessionId.ToString(), response.Cookies.Where(c => c.Name == _configuration.SessionIdCookieName).Select(c => c.Value).First());
         }
 
         [Fact]
@@ -55,7 +55,13 @@ namespace Nancy.Session.Tests
             var sessions = new List<ISession>();
 
             var repository = Substitute.For<IDynamoDbSessionRepository>();
-            repository.WhenForAnyArgs(r => r.SaveSession(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ISession>(), Arg.Any<DateTime>())).Do(x => sessions.Add(x.Arg<ISession>()));
+            repository.WhenForAnyArgs(r => r.SaveSession(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<ISession>(), Arg.Any<DateTime>())).Do(x => sessions.Add(x.Arg<ISession>()));
+            repository.SaveSession(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<ISession>(), Arg.Any<DateTime>())
+                .ReturnsForAnyArgs(
+                    x =>
+                        new DynamoDbSessionRecord(x.Arg<Guid>(), x.Arg<string>(), DateTime.UtcNow, x.Arg<ISession>(),
+                            DateTime.UtcNow));
+
 
             var session = new Session(new Dictionary<string, object>
             {
@@ -72,7 +78,7 @@ namespace Nancy.Session.Tests
 
             var sut = new DynamoDbBasedSessions(configuration);
 
-            sut.Save("", session, new Response());
+            sut.Save(Guid.NewGuid(), session, new Response());
 
             Assert.Equal(session, sessions.First());
         }
@@ -82,7 +88,7 @@ namespace Nancy.Session.Tests
         public void Should_Load_Session()
         {
             var applicationName = "application_name";
-            var sessionId = "session_id";
+            var sessionId = Guid.NewGuid();
             var session = new Session(new Dictionary<string, object>
             {
                 {"key_one", "value_one"},
@@ -100,7 +106,7 @@ namespace Nancy.Session.Tests
             };
 
             var request = new Request("GET", "/", "http");
-            request.Cookies.Add(configuration.SessionIdCookieName, sessionId);
+            request.Cookies.Add(configuration.SessionIdCookieName, sessionId.ToString());
 
             var sut = new DynamoDbBasedSessions(configuration);
 
@@ -121,13 +127,13 @@ namespace Nancy.Session.Tests
                 {"key_two", "value_two"}
             });
 
-            var sessionId = Guid.NewGuid().ToString();
+            var sessionId = Guid.NewGuid();
             var request = new Request("GET", "/", "http");
             var response = new Response();
 
             sut.Save(sessionId, session, response);
-            request.Cookies.Add(_configuration.SessionIdCookieName, sessionId);
-            Assert.Equal(sessionId, response.Cookies.First(c => c.Name == _configuration.SessionIdCookieName).Value);
+            request.Cookies.Add(_configuration.SessionIdCookieName, sessionId.ToString());
+            Assert.Equal(sessionId.ToString(), response.Cookies.First(c => c.Name == _configuration.SessionIdCookieName).Value);
 
             var loadedSession = sut.Load(request);
 
@@ -138,7 +144,7 @@ namespace Nancy.Session.Tests
         public void Should_Delete_Expired_Session()
         {
             var applicationName = "abc";
-            var sessionId = "123";
+            var sessionId = Guid.NewGuid();
             var repository = Substitute.For<IDynamoDbSessionRepository>();
             var request = new Request("GET", "/", "http");
             
@@ -155,11 +161,11 @@ namespace Nancy.Session.Tests
                 {"key_one", "value_one"}
             });
 
-            repository.LoadSession("abc", "123")
+            repository.LoadSession(sessionId, applicationName)
                 .ReturnsForAnyArgs(new DynamoDbSessionRecord(sessionId, applicationName, DateTime.UtcNow.AddMinutes(-10),
                     session, DateTime.UtcNow.AddMinutes(-20)));
 
-            request.Cookies.Add(configuration.SessionIdCookieName, sessionId);
+            request.Cookies.Add(configuration.SessionIdCookieName, sessionId.ToString());
 
             var loadedSession = sut.Load(request);
 
@@ -181,7 +187,7 @@ namespace Nancy.Session.Tests
                 _sessions = sessions;
             }
 
-            public DynamoDbSessionRecord LoadSession(string sessionId, string applicationName)
+            public DynamoDbSessionRecord LoadSession(Guid sessionId, string applicationName)
             {
                 var key = GetHashKey(sessionId, applicationName);
 
@@ -195,14 +201,14 @@ namespace Nancy.Session.Tests
 
             public DynamoDbSessionRecord SaveSession(string applicationName, ISession sessionData, DateTime expires)
             {
-                return SaveSession(string.Empty, applicationName, sessionData, expires);
+                return SaveSession(Guid.Empty, applicationName, sessionData, expires);
             }
 
-            public DynamoDbSessionRecord SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires)
+            public DynamoDbSessionRecord SaveSession(Guid sessionId, string applicationName, ISession sessionData, DateTime expires)
             {
-                if (string.IsNullOrEmpty(sessionId))
+                if (sessionId == Guid.Empty)
                 {
-                    sessionId = Guid.NewGuid().ToString();
+                    sessionId = Guid.NewGuid();
                 }
 
                 var key = GetHashKey(sessionId, applicationName);
@@ -213,14 +219,14 @@ namespace Nancy.Session.Tests
                 return session;
             }
 
-            public void DeleteSession(string sessionId, string applicationName)
+            public void DeleteSession(Guid sessionId, string applicationName)
             {
                 _sessions.Remove(GetHashKey(sessionId, applicationName));
             }
 
-            public string GetHashKey(string sessionId, string applicationName)
+            public string GetHashKey(Guid sessionId, string applicationName)
             {
-                return string.Format("{0}-{1}", applicationName, sessionId);
+                return string.Format("{0}-{1}", applicationName, sessionId.ToString());
             }
         }
 

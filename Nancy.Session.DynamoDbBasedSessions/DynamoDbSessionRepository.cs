@@ -22,7 +22,7 @@ namespace Nancy.Session
             _table = Table.LoadTable(_configuration.DynamoDbClient, _configuration.TableName);
         }
         
-        public DynamoDbSessionRecord LoadSession(string sessionId, string applicationName)
+        public DynamoDbSessionRecord LoadSession(Guid sessionId, string applicationName)
         {
             var hashKey = GetHashKey(sessionId, applicationName);
             var document = _table.GetItem(hashKey);
@@ -32,12 +32,12 @@ namespace Nancy.Session
 
         public DynamoDbSessionRecord SaveSession(string applicationName, ISession sessionData, DateTime expires)
         {
-            return SaveSession(string.Empty, applicationName, sessionData, expires);
+            return SaveSession(Guid.Empty, applicationName, sessionData, expires);
         }
 
-        public DynamoDbSessionRecord SaveSession(string sessionId, string applicationName, ISession sessionData, DateTime expires)
+        public DynamoDbSessionRecord SaveSession(Guid sessionId, string applicationName, ISession sessionData, DateTime expires)
         {
-            var isNew = string.IsNullOrEmpty(sessionId);
+            var isNew = sessionId == Guid.Empty;
             var sessionDocument = new Document();
             
             sessionDocument[ExpiresKey] = expires;
@@ -47,20 +47,20 @@ namespace Nancy.Session
             return isNew ? AddSession(applicationName, sessionDocument) : UpdateSession(sessionId, applicationName, sessionDocument);
         }
 
-        public void DeleteSession(string sessionId, string applicationName)
+        public void DeleteSession(Guid sessionId, string applicationName)
         {
             var hashKey = GetHashKey(sessionId, applicationName);
             _table.DeleteItem(hashKey);
         }
 
-        public string GetHashKey(string sessionId, string applicationName)
+        public string GetHashKey(Guid sessionId, string applicationName)
         {
             return new HashKeyInfo(sessionId, applicationName).HashKey;
         }
 
         private DynamoDbSessionRecord AddSession(string applicationName, Document session)
         {
-            var sessionId = Guid.NewGuid().ToString();
+            var sessionId = Guid.NewGuid();
 
             session[CreateDateKey] = DateTime.UtcNow;
             session[_configuration.SessionIdAttributeName] = GetHashKey(sessionId, applicationName);
@@ -69,7 +69,7 @@ namespace Nancy.Session
             return MapDocumentToSessionRecord(session, false);
         }
 
-        private DynamoDbSessionRecord UpdateSession(string sessionId, string applicationName, Document session)
+        private DynamoDbSessionRecord UpdateSession(Guid sessionId, string applicationName, Document session)
         {
             session[_configuration.SessionIdAttributeName] = GetHashKey(sessionId, applicationName);
 
@@ -107,7 +107,7 @@ namespace Nancy.Session
 
         private class HashKeyInfo
         {
-            public HashKeyInfo(string sessionId, string applicationName)
+            public HashKeyInfo(Guid sessionId, string applicationName)
             {
                 ApplicationName = applicationName;
                 SessionId = sessionId;
@@ -123,12 +123,12 @@ namespace Nancy.Session
                 }
 
                 ApplicationName = tokens[0];
-                SessionId = tokens[1];
+                SessionId = Guid.Parse(tokens[1]);
                 HashKey = hashKey;
             }
 
             public string HashKey { get; private set; }
-            public string SessionId { get; private set; }
+            public Guid SessionId { get; private set; }
             public string ApplicationName { get; private set; }
         }
     }
