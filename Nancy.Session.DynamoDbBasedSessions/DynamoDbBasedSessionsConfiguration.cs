@@ -1,6 +1,7 @@
 ﻿using System;
 using Amazon;
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.Runtime;
 using Nancy.Session;
 
@@ -145,7 +146,7 @@ namespace Nancy.DynamoDbBasedSessions
 
         private readonly Func<DynamoDbBasedSessionsConfiguration, IDynamoDbTableInitializer> _defaultInitializerFactor = c => new DynamoDbTableInitializer(c);
 
-        private readonly Func<DynamoDbBasedSessionsConfiguration, IDynamoDbSessionRepository> _defaultRepositoryFactory = c => new DynamoDbSessionRepository(c);
+        private readonly Func<DynamoDbBasedSessionsConfiguration, IDynamoDbSessionRepository> _defaultRepositoryFactory = c => new DynamoDbSessionRepository(new DynamoDbTableWrapper(c.DynamoDbClient, c.TableName), c);
         public void Dispose()
         {
             DynamoDbClient.Dispose();

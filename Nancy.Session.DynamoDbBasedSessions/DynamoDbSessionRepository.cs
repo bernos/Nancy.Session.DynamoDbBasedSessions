@@ -14,12 +14,12 @@ namespace Nancy.Session
         private const string RecordFormat = "1.0";
 
         private readonly DynamoDbBasedSessionsConfiguration _configuration;
-        private readonly Table _table;
-        
-        public DynamoDbSessionRepository(DynamoDbBasedSessionsConfiguration configuration)
+        private readonly IDynamoDbTable _table;
+
+        public DynamoDbSessionRepository(IDynamoDbTable table, DynamoDbBasedSessionsConfiguration configuration)
         {
             _configuration = configuration;
-            _table = Table.LoadTable(_configuration.DynamoDbClient, _configuration.TableName);
+            _table = table;
         }
         
         public DynamoDbSessionRecord LoadSession(Guid sessionId, string applicationName)

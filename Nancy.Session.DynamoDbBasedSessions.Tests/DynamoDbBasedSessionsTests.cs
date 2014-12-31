@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.DocumentModel;
+using Amazon.DynamoDBv2.Model;
+using Amazon.EC2.Util;
 using Nancy.DynamoDbBasedSessions;
 using NSubstitute;
 using NSubstitute.Core;
@@ -50,10 +53,10 @@ namespace Nancy.Session.Tests
 
         [Fact]
         [Trait("Category", "Unit Tests")]
-        public void Should_Save_Session()
+        public void Should_Save_New_Session()
         {
             var sessions = new List<ISession>();
-
+            
             var repository = Substitute.For<IDynamoDbSessionRepository>();
             repository.WhenForAnyArgs(r => r.SaveSession(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<ISession>(), Arg.Any<DateTime>())).Do(x => sessions.Add(x.Arg<ISession>()));
             repository.SaveSession(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<ISession>(), Arg.Any<DateTime>())
@@ -62,7 +65,7 @@ namespace Nancy.Session.Tests
                         new DynamoDbSessionRecord(x.Arg<Guid>(), x.Arg<string>(), DateTime.UtcNow, x.Arg<ISession>(),
                             DateTime.UtcNow));
 
-
+            
             var session = new Session(new Dictionary<string, object>
             {
                 {"key_one", "value_one"},
@@ -78,7 +81,7 @@ namespace Nancy.Session.Tests
 
             var sut = new DynamoDbBasedSessions(configuration);
 
-            sut.Save(Guid.NewGuid(), session, new Response());
+            sut.Save(Guid.Empty, session, new Response());
 
             Assert.Equal(session, sessions.First());
         }
@@ -172,6 +175,8 @@ namespace Nancy.Session.Tests
             Assert.Equal(0, loadedSession.Count);
 
         }
+
+     
 
         private class MockRepository : IDynamoDbSessionRepository
         {

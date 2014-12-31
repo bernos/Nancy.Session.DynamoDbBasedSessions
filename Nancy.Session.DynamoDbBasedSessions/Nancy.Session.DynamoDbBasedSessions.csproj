@@ -50,6 +50,7 @@
     <Compile Include="DynamoDbBasedSessions.cs" />
     <Compile Include="DynamoDbBasedSessionsConfiguration.cs" />
     <Compile Include="DynamoDbTableInitializer.cs" />
+    <Compile Include="DynamoDbTableWrapper.cs" />
     <Compile Include="EncryptedSessionSerializer.cs" />
     <Compile Include="IDynamoDbTableInitializer.cs" />
     <Compile Include="IDynamoDbSessionRepository.cs" />

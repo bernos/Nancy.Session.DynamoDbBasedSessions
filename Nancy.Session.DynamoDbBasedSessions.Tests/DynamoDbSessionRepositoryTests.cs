@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using Amazon;
-using Amazon.DynamoDBv2.Model;
 using Xunit;
 
 namespace Nancy.Session.Tests
@@ -12,7 +10,7 @@ namespace Nancy.Session.Tests
         [Trait("Category", "Integration Tests")]
         public void Should_Save_New_Session()
         {
-            var repository = new DynamoDbSessionRepository(Configuration);
+            var repository = new DynamoDbSessionRepository(new DynamoDbTableWrapper(Configuration.DynamoDbClient, Configuration.TableName), Configuration);
             var sessionData = new Session(new Dictionary<string, object> {{"key_one", "value_one"}});
 
             var session = repository.SaveSession(Guid.Empty, Configuration.ApplicationName, sessionData, DateTime.UtcNow.AddMinutes(30));
@@ -22,11 +20,16 @@ namespace Nancy.Session.Tests
             Assert.Equal(Configuration.SessionSerializer.Serialize(sessionData), sessionDocument["Data"].AsString());
         }
 
+        public void Should_Generate_Guid_For_New_Session()
+        {
+            Assert.True(false);
+        }
+
         [Fact]
         [Trait("Category", "Integration Tests")]
         public void Should_Set_Created_Time()
         {
-            var repository = new DynamoDbSessionRepository(Configuration);
+            var repository = new DynamoDbSessionRepository(new DynamoDbTableWrapper(Configuration.DynamoDbClient, Configuration.TableName), Configuration);
             var sessionData = new Session(new Dictionary<string, object> { { "key_one", "value_one" } });
 
             var session = repository.SaveSession(Guid.Empty, Configuration.ApplicationName, sessionData, DateTime.UtcNow.AddMinutes(30));
@@ -39,7 +42,7 @@ namespace Nancy.Session.Tests
         [Trait("Category", "Integration Tests")]
         public void Should_Update_ExistingSession()
         {
-            var repository = new DynamoDbSessionRepository(Configuration);
+            var repository = new DynamoDbSessionRepository(new DynamoDbTableWrapper(Configuration.DynamoDbClient, Configuration.TableName), Configuration);
             var initialSessionData = new Session(new Dictionary<string, object>{ { "key_one", "initial_one" } });
             var updatedSessionData = new Session(new Dictionary<string, object> { { "key_one", "updated_one" } });
 
@@ -51,13 +54,14 @@ namespace Nancy.Session.Tests
             var sessionDocument = Table.GetItem(repository.GetHashKey(initialSession.SessionId, Configuration.ApplicationName));
 
             Assert.Equal(Configuration.SessionSerializer.Serialize(updatedSessionData), sessionDocument["Data"].AsString());
+            Assert.Equal(initialSession.SessionId, updatedSession.SessionId);
         }
 
         [Fact]
         [Trait("Category", "Integration Tests")]
         public void Should_Load_Session()
         {
-            var repository = new DynamoDbSessionRepository(Configuration);
+            var repository = new DynamoDbSessionRepository(new DynamoDbTableWrapper(Configuration.DynamoDbClient, Configuration.TableName), Configuration);
             var data = new Session(new Dictionary<string, object> {{"key_one", "value_one"}});
             var expires = DateTime.UtcNow.AddMinutes(130);
 
@@ -73,7 +77,7 @@ namespace Nancy.Session.Tests
         [Trait("Category", "Integration Tests")]
         public void Should_Return_Null_When_Loading_Non_Existent_Session()
         {
-            var repository = new DynamoDbSessionRepository(Configuration);
+            var repository = new DynamoDbSessionRepository(new DynamoDbTableWrapper(Configuration.DynamoDbClient, Configuration.TableName), Configuration);
             Assert.Null(repository.LoadSession(Guid.NewGuid(),"b"));
         }
 
@@ -81,7 +85,7 @@ namespace Nancy.Session.Tests
         [Trait("Category", "Integration Tests")]
         public void Should_Delete_Session()
         {
-            var repository = new DynamoDbSessionRepository(Configuration);
+            var repository = new DynamoDbSessionRepository(new DynamoDbTableWrapper(Configuration.DynamoDbClient, Configuration.TableName), Configuration);
             var data = new Session(new Dictionary<string, object>{{"key_one", "value_one"}});
             var expires = DateTime.UtcNow.AddMinutes(10);
 
