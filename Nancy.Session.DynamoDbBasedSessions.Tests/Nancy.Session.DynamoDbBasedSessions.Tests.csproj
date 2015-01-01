@@ -56,7 +56,6 @@
     <Compile Include="DynamoDbSessionRepositoryTests.cs" />
     <Compile Include="IntegrationTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Stuff.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Nancy.Session.DynamoDbBasedSessions\Nancy.Session.DynamoDbBasedSessions.csproj">
