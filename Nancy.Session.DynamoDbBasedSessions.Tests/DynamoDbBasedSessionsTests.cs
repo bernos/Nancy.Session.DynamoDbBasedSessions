@@ -1,15 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Amazon.CloudSearchDomain.Model;
-using Amazon.DynamoDBv2;
-using Amazon.DynamoDBv2.DocumentModel;
-using Amazon.DynamoDBv2.Model;
-using Amazon.EC2.Util;
-using Amazon.OpsWorks.Model;
+﻿using Amazon.DynamoDBv2;
 using Nancy.DynamoDbBasedSessions;
 using NSubstitute;
-using NSubstitute.Core;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 namespace Nancy.Session.Tests

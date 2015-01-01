@@ -1,16 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using Amazon.DynamoDBv2;
-using Amazon.DynamoDBv2.DocumentModel;
-using Amazon.DynamoDBv2.Model;
-using Nancy.Bootstrapper;
+﻿using Nancy.Bootstrapper;
 using Nancy.Cookies;
-using Nancy.Cryptography;
 using Nancy.DynamoDbBasedSessions;
-using Nancy.Helpers;
+using System;
+using System.Collections.Generic;
 
 namespace Nancy.Session
 {

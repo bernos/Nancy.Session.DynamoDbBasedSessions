@@ -1,9 +1,8 @@
-﻿using System;
-using Amazon;
+﻿using Amazon;
 using Amazon.DynamoDBv2;
-using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.Runtime;
 using Nancy.Session;
+using System;
 
 namespace Nancy.DynamoDbBasedSessions
 {
