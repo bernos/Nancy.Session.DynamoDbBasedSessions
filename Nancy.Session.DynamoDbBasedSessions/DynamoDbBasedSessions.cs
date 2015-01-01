@@ -37,12 +37,7 @@ namespace Nancy.Session
 
         public static void SaveSession(NancyContext context, DynamoDbBasedSessions sessionStore)
         {
-            var cookieName = sessionStore.Configuration.SessionIdCookieName;
-            var sessionId = context.Request.Cookies.ContainsKey(cookieName)
-                ? Guid.Parse(context.Request.Cookies[cookieName])
-                : Guid.Empty;
-
-            sessionStore.Save(sessionId, context.Request.Session, context.Response);
+            sessionStore.Save(context.Request, context.Response);
         }
 
         public DynamoDbBasedSessions(DynamoDbBasedSessionsConfiguration configuration)
@@ -67,16 +62,21 @@ namespace Nancy.Session
             get { return _configuration; }
         }
 
-        public DynamoDbSessionRecord Save(Guid sessionId, ISession session, Response response)
+        public DynamoDbSessionRecord Save(Request request, Response response)
         {
-            if (session == null)
+            var cookieName = Configuration.SessionIdCookieName;
+            var sessionId = request.Cookies.ContainsKey(cookieName)
+                ? Guid.Parse(request.Cookies[cookieName])
+                : Guid.Empty;
+
+            if (request.Session == null)
             {
                 return null;
             }
 
             var expires = DateTime.UtcNow.AddMinutes(Configuration.SessionTimeOutInMinutes);
-            var record = Configuration.Repository.SaveSession(sessionId, Configuration.ApplicationName, session, expires);
-            
+            var record = Configuration.Repository.SaveSession(sessionId, Configuration.ApplicationName, request.Session, expires);
+
             response.WithCookie(new NancyCookie(Configuration.SessionIdCookieName, record.SessionId.ToString())
             {
                 Expires = expires.AddSeconds(10)
@@ -84,7 +84,7 @@ namespace Nancy.Session
 
             return record;
         }
-
+        
         public ISession Load(Request request)
         {
             if (request.Cookies.ContainsKey(Configuration.SessionIdCookieName))

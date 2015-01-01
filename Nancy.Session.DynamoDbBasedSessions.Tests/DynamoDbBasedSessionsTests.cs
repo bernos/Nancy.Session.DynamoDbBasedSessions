@@ -35,11 +35,15 @@ namespace Nancy.Session.Tests
                 ClientFactory = c => Substitute.For<IAmazonDynamoDB>()
             };
 
+            var request = new Request("GET", "/", "http");
+            request.Cookies.Add(configuration.SessionIdCookieName, sessionId.ToString());
+            request.Session = session;
+
             var response = new Response();
 
             var sut = new DynamoDbBasedSessions(configuration);
             
-            var savedSession = sut.Save(sessionId, session, response);
+            var savedSession = sut.Save(request, response);
 
             Assert.Equal(1, response.Cookies.Count(c => c.Name == configuration.SessionIdCookieName));
             Assert.Equal(sessionId.ToString(), response.Cookies.Where(c => c.Name == configuration.SessionIdCookieName).Select(c => c.Value).First());
