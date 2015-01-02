@@ -5,7 +5,7 @@ using Nancy.DynamoDbBasedSessions;
 
 namespace Nancy.Session.Tests
 {
-    public class IntegrationTest : IDisposable
+    public class LocalDbFixture : IDisposable
     {
         private readonly DynamoDbBasedSessionsConfiguration _configuration;
         private readonly Table _table;
@@ -13,7 +13,7 @@ namespace Nancy.Session.Tests
         public DynamoDbBasedSessionsConfiguration Configuration { get { return _configuration; } }
         public Table Table { get { return _table; } }
 
-        public IntegrationTest()
+        public LocalDbFixture()
         {
             var name = GetType().Name;
 

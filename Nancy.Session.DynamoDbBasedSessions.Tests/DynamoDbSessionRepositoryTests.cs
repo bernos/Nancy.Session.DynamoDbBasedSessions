@@ -1,11 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
+using Amazon.DynamoDBv2.DocumentModel;
+using Nancy.DynamoDbBasedSessions;
 using Xunit;
 
 namespace Nancy.Session.Tests
 {
-    public class DynamoDbSessionRepositoryTests : IntegrationTest
+    
+    public class DynamoDbSessionRepositoryTests : IUseFixture<LocalDbFixture>
     {
+        private LocalDbFixture _fixture;
+
+        public Table Table { get { return _fixture.Table; } }
+        public DynamoDbBasedSessionsConfiguration Configuration { get { return _fixture.Configuration; } }
+
+        public void SetFixture(LocalDbFixture fixture)
+        {
+            _fixture = fixture;
+        }
+
         [Fact]
         [Trait("Category", "Integration Tests")]
         public void Should_Save_New_Session()
@@ -96,5 +109,7 @@ namespace Nancy.Session.Tests
             Assert.Null(repository.LoadSession(session.SessionId, Configuration.ApplicationName));
 
         }
+
+        
     }
 }
