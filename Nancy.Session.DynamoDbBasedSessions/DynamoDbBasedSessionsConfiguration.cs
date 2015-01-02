@@ -31,7 +31,6 @@ namespace Nancy.DynamoDbBasedSessions
             ClientFactory = _defaultClientFactory;
             RepositoryFactory = _defaultRepositoryFactory;
             TableInitializerFactory = _defaultInitializerFactor;
-            CreateTableIfNotExist = true;
             ReadCapacityUnits = DefaultReadCapacityUnits;
             WriteCapacityUnits = DefaultWriteCapacityUnits;
             SessionIdAttributeName = DefaultSessionIdAttributeName;
@@ -47,7 +46,6 @@ namespace Nancy.DynamoDbBasedSessions
         public string SessionIdCookieName { get; set; }
         public int SessionTimeOutInMinutes { get; set; }
         public string TableName { get; set; }
-        public bool CreateTableIfNotExist { get; set; }
         public string SessionIdAttributeName { get; set; }
         public string ProfileName { get; set; }
         public string AccessKeyId { get; set; }
