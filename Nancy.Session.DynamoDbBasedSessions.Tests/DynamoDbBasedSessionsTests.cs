@@ -1,5 +1,6 @@
 ﻿using Amazon.DynamoDBv2;
 using Nancy.DynamoDbBasedSessions;
+using Nancy.Testing;
 using NSubstitute;
 using System;
 using System.Collections.Generic;
@@ -11,21 +12,15 @@ namespace Nancy.Session.Tests
     public class DynamoDbBasedSessionsTests
     {
         public const string ApplicationName = "DynamoDbBasedSessionsTests";
-
+        
         [Fact]
         [Trait("Category", "Unit Tests")]
         public void Should_Add_SessionId_Cookie_To_Response()
         {
             var sessionId = Guid.NewGuid();
-            var session = new Session(new Dictionary<string, object>
-            {
-                {"key_one", "value_one"},
-                {"key_two", "value_two"}
-            });
-
             var repository = Substitute.For<IDynamoDbSessionRepository>();
-            repository.SaveSession(sessionId, ApplicationName, session, Arg.Any<DateTime>())
-                .Returns(new DynamoDbSessionRecord(sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(10), session,
+            repository.SaveSession(Arg.Any<Guid>(), ApplicationName, Arg.Any<ISession>(), Arg.Any<DateTime>())
+                .Returns(x => new DynamoDbSessionRecord(sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(10), x.Arg<ISession>(),
                     DateTime.UtcNow));
 
             var configuration = new DynamoDbBasedSessionsConfiguration(ApplicationName)
@@ -35,19 +30,15 @@ namespace Nancy.Session.Tests
                 ClientFactory = c => Substitute.For<IAmazonDynamoDB>()
             };
 
-            var request = new Request("GET", "/", "http");
-            request.Cookies.Add(configuration.SessionIdCookieName, sessionId.ToString());
-            request.Session = session;
+            var browser = new Browser(with =>
+            {
+                with.ApplicationStartup((c, p) => DynamoDbBasedSessions.Enable(p, configuration));
+            });
 
-            var response = new Response();
-
-            var sut = new DynamoDbBasedSessions(configuration);
+            var response = browser.Get("/");
             
-            var savedSession = sut.Save(request, response);
-
             Assert.Equal(1, response.Cookies.Count(c => c.Name == configuration.SessionIdCookieName));
             Assert.Equal(sessionId.ToString(), response.Cookies.Where(c => c.Name == configuration.SessionIdCookieName).Select(c => c.Value).First());
-          
         }
         
         [Fact]
@@ -63,6 +54,9 @@ namespace Nancy.Session.Tests
 
             var repository = Substitute.For<IDynamoDbSessionRepository>();
             repository.LoadSession(sessionId, ApplicationName).Returns(new DynamoDbSessionRecord(sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(10), session, DateTime.UtcNow));
+            repository.SaveSession(sessionId, ApplicationName, Arg.Any<ISession>(), Arg.Any<DateTime>())
+                .Returns(x => new DynamoDbSessionRecord(sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(10), x.Arg<ISession>(),
+                    DateTime.UtcNow));
 
             var configuration = new DynamoDbBasedSessionsConfiguration(ApplicationName)
             {
@@ -71,15 +65,15 @@ namespace Nancy.Session.Tests
                 ClientFactory = c => Substitute.For<IAmazonDynamoDB>()
             };
 
-            var request = new Request("GET", "/", "http");
-            request.Cookies.Add(configuration.SessionIdCookieName, sessionId.ToString());
+            var browser = new Browser(with =>
+            {
+                with.ApplicationStartup((c, p) => DynamoDbBasedSessions.Enable(p, configuration));
+                with.Module<SessionTestModule>();
+            });
 
-            var sut = new DynamoDbBasedSessions(configuration);
+            var response = browser.Get("/", c => c.Cookie(configuration.SessionIdCookieName, sessionId.ToString()));
 
-            var loadedSession = sut.Load(request);
-
-            Assert.Equal(session, loadedSession);
-
+            Assert.Equal("key_one = value_one", response.Body.AsString());
         }
 
         [Fact]
@@ -93,9 +87,10 @@ namespace Nancy.Session.Tests
             });
 
             var repository = Substitute.For<IDynamoDbSessionRepository>();
-            repository.LoadSession(sessionId, ApplicationName)
-                .Returns(new DynamoDbSessionRecord(sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(-10),
-                    session, DateTime.UtcNow.AddMinutes(-20)));
+            repository.LoadSession(sessionId, ApplicationName).Returns(new DynamoDbSessionRecord(sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(-10), session, DateTime.UtcNow.AddMinutes(-20)));
+            repository.SaveSession(Arg.Any<Guid>(), ApplicationName, Arg.Any<ISession>(), Arg.Any<DateTime>())
+                .Returns(x => new DynamoDbSessionRecord(Guid.NewGuid(), ApplicationName, DateTime.UtcNow.AddMinutes(10), x.Arg<ISession>(),
+                    DateTime.UtcNow));
 
             var configuration = new DynamoDbBasedSessionsConfiguration(ApplicationName)
             {
@@ -104,14 +99,33 @@ namespace Nancy.Session.Tests
                 ClientFactory = c => Substitute.For<IAmazonDynamoDB>()
             };
 
-            var request = new Request("GET", "/", "http");
-            request.Cookies.Add(configuration.SessionIdCookieName, sessionId.ToString());
+            var browser = new Browser(with =>
+            {
+                with.ApplicationStartup((c, p) => DynamoDbBasedSessions.Enable(p, configuration));
+                with.Module<SessionTestModule>();
+            });
 
-            var sut = new DynamoDbBasedSessions(configuration);
+            var response = browser.Get("/", c => c.Cookie(configuration.SessionIdCookieName, sessionId.ToString()));
 
-            var loadedSession = sut.Load(request);
+            Assert.Equal("no session", response.Body.AsString());
+        }
+    }
 
-            Assert.Equal(0, loadedSession.Count);
+    public class SessionTestModule : NancyModule
+    {
+        public SessionTestModule()
+        {
+            Get["/"] = _ =>
+            {
+                var session = Request.Session;
+
+                if (session == null || session.Count == 0)
+                {
+                    return "no session";
+                }
+
+                return string.Format("key_one = {0}", session["key_one"]);
+            };
         }
     }
 }

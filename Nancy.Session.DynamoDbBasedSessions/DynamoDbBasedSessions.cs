@@ -10,7 +10,7 @@ namespace Nancy.Session
     {
         private readonly DynamoDbBasedSessionsConfiguration _configuration;
 
-        public static void Enable(IPipelines pipelines, DynamoDbBasedSessionsConfiguration configuration)
+        public static DynamoDbBasedSessions Enable(IPipelines pipelines, DynamoDbBasedSessionsConfiguration configuration)
         {
             if (pipelines == null)
             {
@@ -21,6 +21,8 @@ namespace Nancy.Session
 
             pipelines.BeforeRequest.AddItemToStartOfPipeline(ctx => LoadSession(ctx, sessionStore));
             pipelines.AfterRequest.AddItemToEndOfPipeline(ctx => SaveSession(ctx, sessionStore));
+
+            return sessionStore;
         }
 
         public static Response LoadSession(NancyContext context, DynamoDbBasedSessions sessionStore)
@@ -30,7 +32,7 @@ namespace Nancy.Session
                 return null;
             }
 
-            sessionStore.Load(context.Request);
+            context.Request.Session = sessionStore.Load(context.Request);
 
             return null;
         }
