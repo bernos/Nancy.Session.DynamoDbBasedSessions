@@ -12,102 +12,129 @@ namespace Nancy.Session.Tests
     public class DynamoDbBasedSessionsTests
     {
         public const string ApplicationName = "DynamoDbBasedSessionsTests";
-        
-        [Fact]
-        [Trait("Category", "Unit Tests")]
-        public void Should_Add_SessionId_Cookie_To_Response()
-        {
-            var sessionId = Guid.NewGuid();
-            var repository = Substitute.For<IDynamoDbSessionRepository>();
-            repository.SaveSession(Arg.Any<Guid>(), ApplicationName, Arg.Any<ISession>(), Arg.Any<DateTime>())
-                .Returns(x => new DynamoDbSessionRecord(sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(10), x.Arg<ISession>(),
-                    DateTime.UtcNow));
 
-            var configuration = new DynamoDbBasedSessionsConfiguration(ApplicationName)
+        private readonly Guid _sessionId;
+        private readonly DynamoDbBasedSessionsConfiguration _configuration;
+        private readonly IDynamoDbSessionRepository _repository;
+        private readonly Browser _browser;
+        
+        private ISession _session = new Session();
+
+        public DynamoDbBasedSessionsTests()
+        {
+            _sessionId = Guid.NewGuid();
+
+            _session = new Session(new Dictionary<string, object>
             {
-                RepositoryFactory = c => repository,
+                {"key_one", 0}
+            });
+
+            _repository = Substitute.For<IDynamoDbSessionRepository>();
+            _repository.LoadSession(Arg.Any<Guid>(), Arg.Any<string>()).Returns(x => new DynamoDbSessionRecord(x.Arg<Guid>(), x.Arg<string>(), DateTime.UtcNow.AddMinutes(10), _session, DateTime.UtcNow));
+            _repository.SaveSession(Arg.Any<Guid>(), ApplicationName, Arg.Any<ISession>(), Arg.Any<DateTime>())
+                .Returns(x => new DynamoDbSessionRecord(_sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(10), x.Arg<ISession>(), DateTime.UtcNow));
+
+            _repository.When(r => r.SaveSession(_sessionId, ApplicationName, Arg.Any<ISession>(), Arg.Any<DateTime>())).Do(
+                x =>
+                {
+                    _session = x.Arg<ISession>() as Session;
+                });
+
+            _configuration = new DynamoDbBasedSessionsConfiguration(ApplicationName)
+            {
+                RepositoryFactory = c => _repository,
                 TableInitializerFactory = c => Substitute.For<IDynamoDbTableInitializer>(),
                 ClientFactory = c => Substitute.For<IAmazonDynamoDB>()
             };
 
-            var browser = new Browser(with =>
+            _browser = new Browser(with =>
             {
-                with.ApplicationStartup((c, p) => DynamoDbBasedSessions.Enable(p, configuration));
+                with.ApplicationStartup((c, p) => DynamoDbBasedSessions.Enable(p, _configuration));
+                with.Module<SessionTestModule>();
             });
+        }
 
-            var response = browser.Get("/");
-            
-            Assert.Equal(1, response.Cookies.Count(c => c.Name == configuration.SessionIdCookieName));
-            Assert.Equal(sessionId.ToString(), response.Cookies.Where(c => c.Name == configuration.SessionIdCookieName).Select(c => c.Value).First());
+        [Fact]
+        [Trait("Category", "Unit Tests")]
+        public void Should_Add_SessionId_Cookie_To_Response()
+        {
+            var response = _browser.Get("/");
+
+
+            Assert.Equal(1, response.Cookies.Count(c => c.Name == _configuration.SessionIdCookieName));
+            Assert.Equal(_sessionId.ToString(), response.Cookies.Where(c => c.Name == _configuration.SessionIdCookieName).Select(c => c.Value).First());
         }
         
         [Fact]
         [Trait("Category", "Unit Tests")]
         public void Should_Load_Session_From_SessionId_Cookie()
         {
-            var sessionId = Guid.NewGuid();
-            var session = new Session(new Dictionary<string, object>
-            {
-                {"key_one", "value_one"},
-                {"key_two", "value_two"}
-            });
-
-            var repository = Substitute.For<IDynamoDbSessionRepository>();
-            repository.LoadSession(sessionId, ApplicationName).Returns(new DynamoDbSessionRecord(sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(10), session, DateTime.UtcNow));
-            repository.SaveSession(sessionId, ApplicationName, Arg.Any<ISession>(), Arg.Any<DateTime>())
-                .Returns(x => new DynamoDbSessionRecord(sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(10), x.Arg<ISession>(),
-                    DateTime.UtcNow));
-
-            var configuration = new DynamoDbBasedSessionsConfiguration(ApplicationName)
-            {
-                RepositoryFactory = c => repository,
-                TableInitializerFactory = c => Substitute.For<IDynamoDbTableInitializer>(),
-                ClientFactory = c => Substitute.For<IAmazonDynamoDB>()
-            };
-
-            var browser = new Browser(with =>
-            {
-                with.ApplicationStartup((c, p) => DynamoDbBasedSessions.Enable(p, configuration));
-                with.Module<SessionTestModule>();
-            });
-
-            var response = browser.Get("/", c => c.Cookie(configuration.SessionIdCookieName, sessionId.ToString()));
-
-            Assert.Equal("key_one = value_one", response.Body.AsString());
+            var response = _browser.Get("/", c => c.Cookie(_configuration.SessionIdCookieName, _sessionId.ToString()));
+            
+            Assert.Equal("key_one = 0", response.Body.AsString());
         }
 
         [Fact]
         [Trait("Category", "Unit Tests")]
         public void Should_Delete_Expired_Session()
         {
-            var sessionId = Guid.NewGuid();
-            var session = new Session(new Dictionary<string, object>
-            {
-                {"key_one", "value_one"}
-            });
-
             var repository = Substitute.For<IDynamoDbSessionRepository>();
-            repository.LoadSession(sessionId, ApplicationName).Returns(new DynamoDbSessionRecord(sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(-10), session, DateTime.UtcNow.AddMinutes(-20)));
-            repository.SaveSession(Arg.Any<Guid>(), ApplicationName, Arg.Any<ISession>(), Arg.Any<DateTime>())
-                .Returns(x => new DynamoDbSessionRecord(Guid.NewGuid(), ApplicationName, DateTime.UtcNow.AddMinutes(10), x.Arg<ISession>(),
+            repository.LoadSession(Arg.Any<Guid>(), Arg.Any<string>()).Returns(x => new DynamoDbSessionRecord(x.Arg<Guid>(), x.Arg<string>(), DateTime.UtcNow.AddMinutes(-10), _session, DateTime.UtcNow.AddMinutes(-20)));
+            repository.SaveSession(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<ISession>(), Arg.Any<DateTime>())
+                .Returns(x => new DynamoDbSessionRecord(_sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(10), x.Arg<ISession>(),
                     DateTime.UtcNow));
 
-            var configuration = new DynamoDbBasedSessionsConfiguration(ApplicationName)
-            {
-                RepositoryFactory = c => repository,
-                TableInitializerFactory = c => Substitute.For<IDynamoDbTableInitializer>(),
-                ClientFactory = c => Substitute.For<IAmazonDynamoDB>()
-            };
+            repository.When(r => r.SaveSession(_sessionId, ApplicationName, Arg.Any<ISession>(), Arg.Any<DateTime>())).Do(
+                x =>
+                {
+                    _session = x.Arg<ISession>() as Session;
+                });
 
-            var browser = new Browser(with =>
-            {
-                with.ApplicationStartup((c, p) => DynamoDbBasedSessions.Enable(p, configuration));
-                with.Module<SessionTestModule>();
-            });
+            _configuration.RepositoryFactory = c => repository;
+            
+            //_repository.LoadSession(Arg.Any<Guid>(), Arg.Any<string>()).Returns(x => new DynamoDbSessionRecord(x.Arg<Guid>(), x.Arg<string>(), DateTime.UtcNow.AddMinutes(-10), _session, DateTime.UtcNow.AddMinutes(-20)));
+            
+            /*_repository.SaveSession(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<ISession>(), Arg.Any<DateTime>())
+                .Returns(x => new DynamoDbSessionRecord(_sessionId, ApplicationName, DateTime.UtcNow.AddMinutes(10), x.Arg<ISession>(),
+                    DateTime.UtcNow));
 
-            var response = browser.Get("/", c => c.Cookie(configuration.SessionIdCookieName, sessionId.ToString()));
+            _repository.When(r => r.SaveSession(_sessionId, ApplicationName, Arg.Any<ISession>(), Arg.Any<DateTime>())).Do(
+                x =>
+                {
+                    _session = x.Arg<ISession>() as Session;
+                });
+
+            _configuration.RepositoryFactory = c => _repository;
+            */
+
+            //_repository.LoadSession(Arg.Any<Guid>(), Arg.Any<string>()).Returns(x => new DynamoDbSessionRecord(x.Arg<Guid>(), x.Arg<string>(), DateTime.UtcNow.AddMinutes(-10), _session, DateTime.UtcNow.AddMinutes(-20)));
+            var response = _browser.Get("/", c => c.Cookie(_configuration.SessionIdCookieName, _sessionId.ToString()));
 
             Assert.Equal("no session", response.Body.AsString());
+        }
+
+        [Fact]
+        [Trait("Category", "Unit Tests")]
+        public void Should_Persist_Session_Between_Requests()
+        {
+            var repository = Substitute.For<IDynamoDbSessionRepository>();
+            repository.LoadSession(Arg.Any<Guid>(), Arg.Any<string>()).Returns(x => new DynamoDbSessionRecord(x.Arg<Guid>(), x.Arg<string>(), DateTime.UtcNow.AddMinutes(10), _session, DateTime.UtcNow.AddMinutes(-20)));
+            repository.SaveSession(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<ISession>(), Arg.Any<DateTime>())
+                .Returns(x => new DynamoDbSessionRecord(_sessionId, x.Arg<string>(), DateTime.UtcNow.AddMinutes(10), x.Arg<ISession>(), DateTime.UtcNow));
+
+            repository.When(r => r.SaveSession(_sessionId, ApplicationName, Arg.Any<ISession>(), Arg.Any<DateTime>())).Do(
+                x =>
+                {
+                    _session = x.Arg<ISession>() as Session;
+                });
+
+            _configuration.RepositoryFactory = c => repository;
+
+            _browser.Get("/increment", c => c.Cookie(_configuration.SessionIdCookieName, _sessionId.ToString()));
+            Assert.Equal(1, _session["key_one"]);
+
+            _browser.Get("/increment", c => c.Cookie(_configuration.SessionIdCookieName, _sessionId.ToString()));
+            Assert.Equal(2, _session["key_one"]);
         }
     }
 
@@ -123,6 +150,15 @@ namespace Nancy.Session.Tests
                 {
                     return "no session";
                 }
+
+                return string.Format("key_one = {0}", session["key_one"]);
+            };
+
+            Get["/increment"] = _ =>
+            {
+                var session = Request.Session;
+
+                session["key_one"] = ((int)session["key_one"]) + 1;
 
                 return string.Format("key_one = {0}", session["key_one"]);
             };
