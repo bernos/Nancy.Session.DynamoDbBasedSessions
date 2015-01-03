@@ -16,7 +16,7 @@ Task Publish -Depends Package {
     }
 }
 
-Task Package -Depends Set-Versions,Build {
+Task Package -Depends Set-Versions,Test {
     foreach($project in $projects) {
         Get-ChildItem -Path "$project\*.csproj" | ForEach-Object {            
             exec { nuget pack -sym $_.FullName -Prop Configuration=$configuration }
