@@ -47,18 +47,18 @@ namespace Nancy.DynamoDbBasedSessions
         /// of the DynamoDbTableInitializer class, which will attempt to create the table if it does not
         /// exist
         /// </summary>
-        public Func<DynamoDbBasedSessionsConfiguration, IDynamoDbTableInitializer> TableInitializerFactory { get; set; } 
+        public Func<DynamoDbBasedSessionsConfiguration, IDynamoDbTableInitializer> TableInitializerFactory { private get; set; } 
         
         /// <summary>
         /// Factory method that creates our dynamodb client
         /// </summary>
-        public Func<DynamoDbBasedSessionsConfiguration, IAmazonDynamoDB> ClientFactory { get; set; }
+        public Func<DynamoDbBasedSessionsConfiguration, IAmazonDynamoDB> ClientFactory { private get; set; }
         
         /// <summary>
         /// Factory method that creates an IDynamoDbSessionRepository instance. The default implementation
         /// will create an instance of the DynamoDbSessionRepository class.
         /// </summary>
-        public Func<DynamoDbBasedSessionsConfiguration, IDynamoDbSessionRepository> RepositoryFactory { get; set; } 
+        public Func<DynamoDbBasedSessionsConfiguration, IDynamoDbSessionRepository> RepositoryFactory { private get; set; } 
         
         /// <summary>
         /// The AWS region that the DynamoDb resides within
